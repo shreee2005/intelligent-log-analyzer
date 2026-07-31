@@ -1,11 +1,15 @@
 server:
-  port: 8084
+  port: 8083
 
 spring:
   application:
-    name: search-service
-  elasticsearch:
-    uris: http://localhost:9200
+    name: analysis-service
+  kafka:
+    bootstrap-servers: kafka:9092
+  data:
+    redis:
+      host: redis
+      port: 6379
 
 management:
   endpoints:

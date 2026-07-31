@@ -1,0 +1,24 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: stream-processor-service
+  kafka:
+    bootstrap-servers: kafka:9092
+    streams:
+      application-id: log-processor
+      bootstrap-servers: kafka:9092
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.loganalyzer: DEBUG

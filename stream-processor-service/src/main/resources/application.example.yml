@@ -1,14 +1,14 @@
 server:
-  port: 8081
+  port: 8082
 
 spring:
   application:
-    name: log-ingestion-service
+    name: stream-processor-service
   kafka:
     bootstrap-servers: localhost:9092
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    streams:
+      application-id: log-processor
+      bootstrap-servers: localhost:9092
 
 management:
   endpoints:

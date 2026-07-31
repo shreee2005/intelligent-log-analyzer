@@ -38,6 +38,16 @@ docker-compose.override.yml
 .env
 .env.local
 
+# Application configuration (sensitive data)
+**/application.yml
+**/application-*.yml
+**/application.properties
+**/application-*.properties
+
+# Keep example/template configs
+!**/application*.example.yml
+!**/application*.example.properties
+
 # Logs
 logs/
 *.log.*

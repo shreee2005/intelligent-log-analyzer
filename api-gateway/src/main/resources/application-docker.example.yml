@@ -8,23 +8,23 @@ spring:
     gateway:
       routes:
         - id: ingestion-service
-          uri: http://localhost:8081
+          uri: http://log-ingestion-service:8086
           predicates:
             - Path=/api/ingestion/**
         - id: processor-service
-          uri: http://localhost:8082
+          uri: http://stream-processor-service:8082
           predicates:
             - Path=/api/processor/**
         - id: analysis-service
-          uri: http://localhost:8083
+          uri: http://analysis-service:8083
           predicates:
             - Path=/api/analysis/**
         - id: search-service
-          uri: http://localhost:8084
+          uri: http://search-service:8084
           predicates:
             - Path=/api/search/**
         - id: alert-service
-          uri: http://localhost:8085
+          uri: http://alert-service:8085
           predicates:
             - Path=/api/alert/**
 

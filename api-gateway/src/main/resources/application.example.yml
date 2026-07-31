@@ -1,0 +1,42 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: ingestion-service
+          uri: http://localhost:8086
+          predicates:
+            - Path=/api/ingestion/**
+        - id: processor-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/processor/**
+        - id: analysis-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/analysis/**
+        - id: search-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/search/**
+        - id: alert-service
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/alert/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.loganalyzer: DEBUG
