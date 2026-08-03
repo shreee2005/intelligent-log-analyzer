@@ -37,7 +37,7 @@ docker-compose.override.yml
 # Environment
 .env
 .env.local
-
+docs/Progress1.txt
 # Application configuration (sensitive data)
 **/application.yml
 **/application-*.yml
