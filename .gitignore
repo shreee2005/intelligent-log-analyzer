@@ -15,7 +15,7 @@ dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
-
+docs/Progress2.txt
 # IDE
 .idea/
 *.iml
