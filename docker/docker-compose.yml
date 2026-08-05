@@ -17,8 +17,9 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_HOST://localhost:9093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
@@ -53,96 +54,7 @@ services:
     volumes:
       - redis-data:/data
 
-  # Spring Boot Microservices
-  log-ingestion-service:
-    build:
-      context: ../log-ingestion-service
-      dockerfile: Dockerfile
-    ports:
-      - "8086:8086"
-    depends_on:
-      - kafka
-    environment:
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_PROFILES_ACTIVE: docker
-    networks:
-      - log-analyzer-network
-
-  stream-processor-service:
-    build:
-      context: ../stream-processor-service
-      dockerfile: Dockerfile
-    ports:
-      - "8082:8082"
-    depends_on:
-      - kafka
-    environment:
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_PROFILES_ACTIVE: docker
-    networks:
-      - log-analyzer-network
-
-  analysis-service:
-    build:
-      context: ../analysis-service
-      dockerfile: Dockerfile
-    ports:
-      - "8083:8083"
-    depends_on:
-      - kafka
-      - redis
-    environment:
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_REDIS_HOST: redis
-      SPRING_REDIS_PORT: 6379
-      SPRING_PROFILES_ACTIVE: docker
-    networks:
-      - log-analyzer-network
-
-  search-service:
-    build:
-      context: ../search-service
-      dockerfile: Dockerfile
-    ports:
-      - "8084:8084"
-    depends_on:
-      - elasticsearch
-    environment:
-      SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
-      SPRING_PROFILES_ACTIVE: docker
-    networks:
-      - log-analyzer-network
-
-  alert-service:
-    build:
-      context: ../alert-service
-      dockerfile: Dockerfile
-    ports:
-      - "8085:8085"
-    depends_on:
-      - kafka
-    environment:
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      SPRING_PROFILES_ACTIVE: docker
-    networks:
-      - log-analyzer-network
-
-  api-gateway:
-    build:
-      context: ../api-gateway
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    depends_on:
-      - log-ingestion-service
-      - stream-processor-service
-      - analysis-service
-      - search-service
-      - alert-service
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
-    networks:
-      - log-analyzer-network
+  # Spring Boot Microservices removed for local development
 
 networks:
   log-analyzer-network:
