@@ -16,6 +16,7 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 docs/Progress2.txt
+docs/Progress3.txt
 # IDE
 .idea/
 *.iml

@@ -32,6 +32,7 @@ public class LogAggregator {
         return this;
     }
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public double getErrorRate() {
         if (totalCount == 0) return 0.0;
         return (double) errorCount / totalCount;
