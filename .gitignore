@@ -57,4 +57,4 @@ logs/
 # Node.js (for frontend)
 node_modules/
 npm-debug.log
-yarn-error.log
+yarn-error.log.env
