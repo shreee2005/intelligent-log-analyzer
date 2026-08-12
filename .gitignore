@@ -18,6 +18,8 @@ buildNumber.properties
 docs/Progress2.txt
 docs/Progress3.txt
 docs/Progress4.txt
+docs/Progress5.txt
+docs/*.txt
 # IDE
 .idea/
 *.iml
