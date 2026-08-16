@@ -16,6 +16,10 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 docs/Progress2.txt
+docs/Progress3.txt
+docs/Progress4.txt
+docs/Progress5.txt
+docs/*.txt
 # IDE
 .idea/
 *.iml
@@ -55,4 +59,4 @@ logs/
 # Node.js (for frontend)
 node_modules/
 npm-debug.log
-yarn-error.log
+yarn-error.log.env
