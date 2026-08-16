@@ -65,13 +65,28 @@ public class JsonLogParser implements LogParser {
 
         } catch (Exception e) {
             log.error("Failed to parse JSON log", e);
+            
+            LogLevel fallbackLevel = LogLevel.INFO;
+            if (rawLog.getLevel() != null) {
+                try {
+                    fallbackLevel = LogLevel.valueOf(rawLog.getLevel().toUpperCase());
+                } catch (Exception ignore) {}
+            }
+            
+            Instant fallbackTime = Instant.now();
+            if (rawLog.getTimestamp() != null) {
+                try {
+                    fallbackTime = Instant.parse(rawLog.getTimestamp());
+                } catch (Exception ignore) {}
+            }
+
             // Fallback to treat it as plain text if JSON parsing fails entirely
             return LogEntry.builder()
                     .id(UUID.randomUUID())
-                    .timestamp(Instant.now())
+                    .timestamp(fallbackTime)
                     .ingestionTimestamp(Instant.now())
                     .serviceId(rawLog.getServiceId())
-                    .level(LogLevel.INFO)
+                    .level(fallbackLevel)
                     .message(rawLog.getMessage())
                     .host(rawLog.getHost())
                     .rawLog(rawLog.getMessage())
