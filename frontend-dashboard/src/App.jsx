@@ -1,23 +1,318 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 import LiveMetricsPanel from './LiveMetricsPanel';
 import LogSearchConsole from './LogSearchConsole';
-import { Activity } from 'lucide-react';
+import IntegrationHub from './IntegrationHub';
+import { LayoutDashboard, CodeSquare, LogOut, Briefcase, Plus, ShieldCheck, FolderKey } from 'lucide-react';
 
 function App() {
+  const [token, setToken] = useState(localStorage.getItem('token') || '');
+  const [email, setEmail] = useState(localStorage.getItem('email') || '');
+  const [currentView, setCurrentView] = useState(token ? 'projects' : 'login');
+  
+  // Auth Form State
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+
+  // Projects State
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+
+  // Layout Tab State
+  const [dashTab, setDashTab] = useState('dashboard');
+
+  // Load projects if token exists
+  useEffect(() => {
+    if (token) {
+      fetchProjects();
+    }
+  }, [token]);
+
+  const fetchProjects = async () => {
+    try {
+      const response = await axios.get('http://localhost:8091/api/projects', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProjects(response.data);
+    } catch (err) {
+      console.error('Failed to fetch projects', err);
+      if (err.response && err.response.status === 401) {
+        handleLogout();
+      }
+    }
+  };
+
+  const handleAuth = async (isRegister) => {
+    setAuthError('');
+    setAuthLoading(true);
+    const url = isRegister ? 'http://localhost:8091/api/auth/register' : 'http://localhost:8091/api/auth/login';
+    try {
+      const response = await axios.post(url, {
+        email: authEmail,
+        password: authPassword
+      });
+
+      if (isRegister) {
+        // Automatically login after signup
+        const loginResp = await axios.post('http://localhost:8091/api/auth/login', {
+          email: authEmail,
+          password: authPassword
+        });
+        saveSession(loginResp.data.token, authEmail);
+      } else {
+        saveSession(response.data.token, authEmail);
+      }
+    } catch (err) {
+      console.error(err);
+      setAuthError(err.response?.data?.error || 'Authentication failed. Please try again.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const saveSession = (jwtToken, userEmail) => {
+    localStorage.setItem('token', jwtToken);
+    localStorage.setItem('email', userEmail);
+    setToken(jwtToken);
+    setEmail(userEmail);
+    setCurrentView('projects');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('email');
+    setToken('');
+    setEmail('');
+    setSelectedProject(null);
+    setCurrentView('login');
+  };
+
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    if (!newProjectName.trim()) return;
+
+    try {
+      const response = await axios.post('http://localhost:8091/api/projects', 
+        { name: newProjectName },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setNewProjectName('');
+      setIsCreatingProject(false);
+      fetchProjects();
+    } catch (err) {
+      console.error('Failed to create project', err);
+      alert('Error creating project. Check if your connection is valid.');
+    }
+  };
+
+  const selectProject = (project) => {
+    setSelectedProject(project);
+    setCurrentView('dashboard');
+  };
+
+  if (currentView === 'login' || currentView === 'signup') {
+    const isSignup = currentView === 'signup';
+    return (
+      <div className="app-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <div className="card" style={{ maxWidth: '400px', width: '100%', padding: '2rem' }}>
+          <div className="card-title" style={{ justifyContent: 'center', fontSize: '1.5rem', marginBottom: '1.5rem' }}>
+            <FolderKey size={28} />
+            {isSignup ? 'Create Account' : 'Sign In'}
+          </div>
+
+          {authError && <p className="error-message" style={{ textAlign: 'center', marginBottom: '1rem' }}>{authError}</p>}
+
+          <form onSubmit={(e) => { e.preventDefault(); handleAuth(isSignup); }}>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.25rem', color: 'var(--text-muted)' }}>Email</label>
+              <input 
+                type="email" 
+                className="search-input" 
+                style={{ width: '100%', padding: '0.75rem' }} 
+                value={authEmail}
+                onChange={(e) => setAuthEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.25rem', color: 'var(--text-muted)' }}>Password</label>
+              <input 
+                type="password" 
+                className="search-input" 
+                style={{ width: '100%', padding: '0.75rem' }} 
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              className="nav-item active" 
+              style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', cursor: 'pointer' }}
+              disabled={authLoading}
+            >
+              {authLoading ? 'Please wait...' : isSignup ? 'Sign Up' : 'Sign In'}
+            </button>
+          </form>
+
+          <div style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.875rem' }}>
+            {isSignup ? (
+              <span style={{ color: 'var(--text-muted)' }}>
+                Already have an account? <a href="#" style={{ color: 'var(--primary)' }} onClick={() => setCurrentView('login')}>Sign In</a>
+              </span>
+            ) : (
+              <span style={{ color: 'var(--text-muted)' }}>
+                Don't have an account? <a href="#" style={{ color: 'var(--primary)' }} onClick={() => setCurrentView('signup')}>Sign Up</a>
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentView === 'projects') {
+    return (
+      <div className="app-container">
+        <header className="header">
+          <div className="header-brand">
+            <h1>Observability Hub</h1>
+            <div className="header-status">
+              <ShieldCheck size={14} style={{ color: 'var(--success)' }} />
+              Logged in as {email}
+            </div>
+          </div>
+          <nav className="top-nav">
+            <button className="nav-item" onClick={handleLogout}>
+              <LogOut size={16} />
+              Logout
+            </button>
+          </nav>
+        </header>
+
+        <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+            <h2>Your Projects</h2>
+            <button 
+              className="nav-item active" 
+              onClick={() => setIsCreatingProject(!isCreatingProject)}
+              style={{ cursor: 'pointer' }}
+            >
+              <Plus size={16} />
+              New Project
+            </button>
+          </div>
+
+          {isCreatingProject && (
+            <div className="card" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
+              <form onSubmit={handleCreateProject} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '0.25rem', color: 'var(--text-muted)' }}>Project Name</label>
+                  <input 
+                    type="text" 
+                    className="search-input" 
+                    style={{ width: '100%', padding: '0.75rem' }} 
+                    placeholder="e.g. Workflow Engine, Payment API"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    required
+                  />
+                </div>
+                <button type="submit" className="nav-item active" style={{ padding: '0.75rem 1.5rem', cursor: 'pointer' }}>Create</button>
+                <button type="button" className="nav-item" onClick={() => setIsCreatingProject(false)} style={{ padding: '0.75rem 1.5rem', cursor: 'pointer' }}>Cancel</button>
+              </form>
+            </div>
+          )}
+
+          {projects.length === 0 ? (
+            <div className="card" style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <Briefcase size={48} style={{ margin: '0 auto 1rem', display: 'block', opacity: 0.5 }} />
+              <p style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>No projects configured yet.</p>
+              <p style={{ fontSize: '0.9rem' }}>Create a project above to generate an API key and start ingesting logs.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+              {projects.map(proj => (
+                <div 
+                  key={proj.id} 
+                  className="card" 
+                  style={{ padding: '1.5rem', cursor: 'pointer', transition: 'border-color 0.2s', border: '1px solid var(--border)' }}
+                  onClick={() => selectProject(proj)}
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+                  onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                >
+                  <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Briefcase size={18} style={{ color: 'var(--primary)' }} />
+                    {proj.name}
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    API Key: {proj.apiKey}
+                  </p>
+                  <div style={{ marginTop: '1rem', fontSize: '0.875rem', color: 'var(--primary)', textAlign: 'right' }}>
+                    Open Dashboard →
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Dashboard / Integrations View for Selected Project
   return (
     <div className="app-container">
       <header className="header">
-        <h1>Intelligent Log Analyzer</h1>
-        <div className="header-status">
-          <div className="status-dot"></div>
-          System Operational
+        <div className="header-brand">
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Briefcase size={22} style={{ color: 'var(--primary)' }} />
+            {selectedProject.name}
+          </h1>
+          <div className="header-status">
+            <span style={{ cursor: 'pointer', color: 'var(--primary)' }} onClick={() => setCurrentView('projects')}>
+              ← Switch Project
+            </span>
+          </div>
         </div>
+        
+        {/* Navigation Menu */}
+        <nav className="top-nav">
+          <button 
+            className={`nav-item ${dashTab === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setDashTab('dashboard')}
+          >
+            <LayoutDashboard size={16} />
+            Dashboard
+          </button>
+          <button 
+            className={`nav-item ${dashTab === 'integrations' ? 'active' : ''}`}
+            onClick={() => setDashTab('integrations')}
+          >
+            <CodeSquare size={16} />
+            Integrations Hub
+          </button>
+          <button className="nav-item" onClick={handleLogout}>
+            <LogOut size={16} />
+            Logout
+          </button>
+        </nav>
       </header>
 
-      <div className="dashboard-grid">
-        <LiveMetricsPanel />
-        <LogSearchConsole />
-      </div>
+      {/* Main Content Area */}
+      {dashTab === 'dashboard' ? (
+        <div className="dashboard-grid">
+          <LiveMetricsPanel projectId={selectedProject.id} />
+          <LogSearchConsole projectId={selectedProject.id} />
+        </div>
+      ) : (
+        <IntegrationHub project={selectedProject} />
+      )}
     </div>
   );
 }

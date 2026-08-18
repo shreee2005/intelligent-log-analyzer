@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Search, Loader2, Calendar, Filter, Terminal, CheckCircle, AlertTriangle, ShieldAlert, FileText, Wrench } from 'lucide-react';
 import { parseLogSemanticContext } from './LogSemanticParser';
 
-const LogSearchConsole = () => {
+const LogSearchConsole = ({ projectId }) => {
   const [allLogs, setAllLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -14,28 +14,34 @@ const LogSearchConsole = () => {
   const [selectedService, setSelectedService] = useState('ALL');
   const [selectedLevel, setSelectedLevel] = useState('ALL');
 
-  // Fetch all logs initially to allow rich local filtering
+  // Fetch all logs initially and set up polling
   useEffect(() => {
-    const fetchInitialLogs = async () => {
-      setLoading(true);
+    if (!projectId) return;
+    
+    const fetchLogs = async (isInitial = false) => {
+      if (isInitial) setLoading(true);
       try {
-        // We use a wildcard/empty search if supported, otherwise just fetch everything or common keywords.
-        // For this demo, we'll hit the generic search with an empty string if possible, or just default to fetching recent logs
-        // Assuming backend search allows empty query or we just fetch everything. 
-        // If not, we'll fetch with a common wildcard.
-        const response = await axios.get(`http://localhost:8084/api/v1/search?query=`);
+        const response = await axios.get(`http://localhost:8084/api/v1/search?projectId=${projectId}&query=`);
         const sortedLogs = response.data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         setAllLogs(sortedLogs);
-        setFilteredLogs(sortedLogs);
       } catch (err) {
-        console.error('Initial fetch error', err);
-        setError('Failed to connect to Search Service. Make sure it is running on port 8084.');
+        console.error('Fetch error', err);
+        if (isInitial) setError('Failed to connect to Search Service. Make sure it is running on port 8084.');
       } finally {
-        setLoading(false);
+        if (isInitial) setLoading(false);
       }
     };
-    fetchInitialLogs();
-  }, []);
+    
+    // Initial fetch
+    fetchLogs(true);
+
+    // Set up auto-refresh every 5 seconds
+    const interval = setInterval(() => {
+      fetchLogs(false);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [projectId]);
 
   // Apply Filters
   useEffect(() => {

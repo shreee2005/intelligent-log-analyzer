@@ -61,6 +61,7 @@ public class JsonLogParser implements LogParser {
                     .message(msg)
                     .host(rawLog.getHost())
                     .rawLog(rawLog.getMessage())
+                    .projectId(rawLog.getProjectId())
                     .build();
 
         } catch (Exception e) {
@@ -90,6 +91,7 @@ public class JsonLogParser implements LogParser {
                     .message(rawLog.getMessage())
                     .host(rawLog.getHost())
                     .rawLog(rawLog.getMessage())
+                    .projectId(rawLog.getProjectId())
                     .build();
         }
     }

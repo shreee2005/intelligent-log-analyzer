@@ -41,6 +41,7 @@ public class LogParserFactory {
                 .message(rawLog.getMessage())
                 .rawLog(rawLog.getMessage())
                 .host(rawLog.getHost())
+                .projectId(rawLog.getProjectId())
                 .build();
     }
 }

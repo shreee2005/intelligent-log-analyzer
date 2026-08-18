@@ -24,4 +24,6 @@ public class LogRaw {
     private String level;
     private String timestamp;
     private String host;
+    
+    private Long projectId;
 }

@@ -24,12 +24,13 @@ public class MetricsRedisRepository {
     private static final DateTimeFormatter MINUTE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
                                                                             .withZone(ZoneId.of("UTC"));
 
-    public void incrementLogCount(String serviceId, String level, Instant timestamp) {
+    public void incrementLogCount(Long projectId, String serviceId, String level, Instant timestamp) {
         String timeBucket = MINUTE_FORMAT.format(timestamp);
-        String key = KEY_PREFIX + serviceId + ":" + timeBucket;
+        long pid = projectId != null ? projectId : 0L;
+        String key = KEY_PREFIX + pid + ":" + serviceId + ":" + timeBucket;
         
         // Track the buckets for the service so we can easily query them later
-        redisTemplate.opsForSet().add("service_buckets:" + serviceId, timeBucket);
+        redisTemplate.opsForSet().add("service_buckets:" + pid + ":" + serviceId, timeBucket);
         
         redisTemplate.opsForHash().increment(key, "TOTAL", 1);
         
@@ -43,8 +44,9 @@ public class MetricsRedisRepository {
         redisTemplate.expire(key, 24, TimeUnit.HOURS);
     }
 
-    public DashboardMetrics getMetrics(String serviceId) {
-        Set<String> buckets = redisTemplate.opsForSet().members("service_buckets:" + serviceId);
+    public DashboardMetrics getMetrics(Long projectId, String serviceId) {
+        long pid = projectId != null ? projectId : 0L;
+        Set<String> buckets = redisTemplate.opsForSet().members("service_buckets:" + pid + ":" + serviceId);
         
         long totalLogs = 0;
         long errorCount = 0;
@@ -53,7 +55,7 @@ public class MetricsRedisRepository {
         
         if (buckets != null) {
             for (String bucket : buckets) {
-                String key = KEY_PREFIX + serviceId + ":" + bucket;
+                String key = KEY_PREFIX + pid + ":" + serviceId + ":" + bucket;
                 
                 Object totalObj = redisTemplate.opsForHash().get(key, "TOTAL");
                 Object errorObj = redisTemplate.opsForHash().get(key, "ERROR");
