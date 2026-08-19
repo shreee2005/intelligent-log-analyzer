@@ -32,6 +32,17 @@ function App() {
     }
   }, [token]);
 
+  // Check for OAuth token/email in URL query parameters on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get('token');
+    const urlEmail = params.get('email');
+    if (urlToken && urlEmail) {
+      saveSession(urlToken, urlEmail);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   const fetchProjects = async () => {
     try {
       const response = await axios.get('http://localhost:8091/api/projects', {
@@ -160,7 +171,30 @@ function App() {
             </button>
           </form>
 
-          <div style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.875rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', margin: '1.5rem 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border)' }}></div>
+            <span style={{ padding: '0 0.5rem' }}>OR</span>
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border)' }}></div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column' }}>
+            <button 
+              onClick={() => window.location.href = 'http://localhost:8091/oauth2/authorization/google'}
+              className="nav-item" 
+              style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}
+            >
+              Continue with Google
+            </button>
+            <button 
+              onClick={() => window.location.href = 'http://localhost:8091/oauth2/authorization/github'}
+              className="nav-item" 
+              style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}
+            >
+              Continue with GitHub
+            </button>
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem' }}>
             {isSignup ? (
               <span style={{ color: 'var(--text-muted)' }}>
                 Already have an account? <a href="#" style={{ color: 'var(--primary)' }} onClick={() => setCurrentView('login')}>Sign In</a>
