@@ -43,7 +43,12 @@ public class AnalyticsKafkaConsumer {
                 }
             }
             
-            metricsRedisRepository.incrementLogCount(serviceId, level, timestamp);
+            Long projectId = null;
+            if (root.hasNonNull("projectId")) {
+                projectId = root.path("projectId").asLong();
+            }
+            
+            metricsRedisRepository.incrementLogCount(projectId, serviceId, level, timestamp);
             
         } catch (JsonProcessingException e) {
             log.error("Failed to parse log message: {}", message, e);

@@ -20,17 +20,17 @@ public class SearchController {
     private final LogSearchRepository logSearchRepository;
 
     @GetMapping
-    public List<LogDocument> searchLogs(@RequestParam String query) {
-        return logSearchRepository.findByMessageContaining(query);
+    public List<LogDocument> searchLogs(@RequestParam Long projectId, @RequestParam String query) {
+        return logSearchRepository.findByProjectIdAndMessageContaining(projectId, query);
     }
     
     @GetMapping("/service")
-    public List<LogDocument> searchByService(@RequestParam String serviceId) {
-        return logSearchRepository.findByServiceId(serviceId);
+    public List<LogDocument> searchByService(@RequestParam Long projectId, @RequestParam String serviceId) {
+        return logSearchRepository.findByProjectIdAndServiceId(projectId, serviceId);
     }
     
     @GetMapping("/level")
-    public List<LogDocument> searchByLevel(@RequestParam String level) {
-        return logSearchRepository.findByLevel(level);
+    public List<LogDocument> searchByLevel(@RequestParam Long projectId, @RequestParam String level) {
+        return logSearchRepository.findByProjectIdAndLevel(projectId, level);
     }
 }
