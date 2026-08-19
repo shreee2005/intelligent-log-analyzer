@@ -37,7 +37,13 @@ public class SearchKafkaConsumer {
                 }
             }
 
+            Long projectId = null;
+            if (root.hasNonNull("projectId")) {
+                projectId = root.path("projectId").asLong();
+            }
+
             LogDocument doc = LogDocument.builder()
+                    .projectId(projectId)
                     .serviceId(root.path("serviceId").asText())
                     .level(root.path("level").asText())
                     .message(root.path("message").asText())

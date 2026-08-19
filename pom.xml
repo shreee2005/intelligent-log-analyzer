@@ -24,6 +24,7 @@
         <module>search-service</module>
         <module>alert-service</module>
         <module>api-gateway</module>
+        <module>auth-service</module>
     </modules>
 
     <properties>

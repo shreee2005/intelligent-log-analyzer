@@ -28,6 +28,9 @@ public class LogDocument {
     @Field(type = FieldType.Keyword)
     private String level;
 
+    @Field(type = FieldType.Long)
+    private Long projectId;
+
     // The raw log message optimized for full text search
     @Field(type = FieldType.Text, analyzer = "standard")
     private String message;

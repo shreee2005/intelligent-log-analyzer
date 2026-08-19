@@ -25,4 +25,5 @@ public class LogEntry {
     private List<String> tags;
     private String rawLog;
     private Instant ingestionTimestamp;
+    private Long projectId;
 }

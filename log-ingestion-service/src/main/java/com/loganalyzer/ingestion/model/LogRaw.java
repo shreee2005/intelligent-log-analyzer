@@ -21,5 +21,9 @@ public class LogRaw {
     @NotNull(message = "Format must be specified")
     private LogFormat format;
     
+    private String level;
+    private String timestamp;
     private String host;
+    
+    private Long projectId;
 }

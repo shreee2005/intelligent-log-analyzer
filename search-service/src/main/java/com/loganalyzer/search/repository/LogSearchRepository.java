@@ -10,12 +10,12 @@ import java.util.List;
 @Repository
 public interface LogSearchRepository extends ElasticsearchRepository<LogDocument, String> {
     
-    List<LogDocument> findByServiceId(String serviceId);
+    List<LogDocument> findByProjectIdAndServiceId(Long projectId, String serviceId);
     
-    List<LogDocument> findByLevel(String level);
+    List<LogDocument> findByProjectIdAndLevel(Long projectId, String level);
     
     // Fuzzy search using Elastic
-    List<LogDocument> findByMessageContaining(String keyword);
+    List<LogDocument> findByProjectIdAndMessageContaining(Long projectId, String keyword);
     
     List<LogDocument> findByTimestampBefore(Instant timestamp);
     
