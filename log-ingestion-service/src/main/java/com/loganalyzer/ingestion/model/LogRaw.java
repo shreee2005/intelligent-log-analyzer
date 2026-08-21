@@ -26,4 +26,6 @@ public class LogRaw {
     private String host;
     
     private Long projectId;
+    private String traceId;
+    private String spanId;
 }

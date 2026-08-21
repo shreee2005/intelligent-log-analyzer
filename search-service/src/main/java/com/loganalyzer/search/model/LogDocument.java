@@ -37,4 +37,10 @@ public class LogDocument {
 
     @Field(type = FieldType.Date)
     private Instant timestamp;
+
+    @Field(type = FieldType.Keyword)
+    private String traceId;
+
+    @Field(type = FieldType.Keyword)
+    private String spanId;
 }

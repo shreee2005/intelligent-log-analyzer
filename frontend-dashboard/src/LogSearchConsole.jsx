@@ -8,6 +8,14 @@ const LogSearchConsole = ({ projectId }) => {
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [openTraces, setOpenTraces] = useState({});
+
+  const handleToggle = (traceId, event) => {
+    setOpenTraces(prev => ({
+      ...prev,
+      [traceId]: event.target.open
+    }));
+  };
 
   // Filter States
   const [query, setQuery] = useState('');
@@ -21,7 +29,7 @@ const LogSearchConsole = ({ projectId }) => {
     const fetchLogs = async (isInitial = false) => {
       if (isInitial) setLoading(true);
       try {
-        const response = await axios.get(`http://localhost:8084/api/v1/search?projectId=${projectId}&query=`);
+        const response = await axios.get(`http://localhost:8084/api/v1/search?projectId=${projectId}&query=&t=${new Date().getTime()}`);
         const sortedLogs = response.data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         setAllLogs(sortedLogs);
       } catch (err) {
@@ -63,8 +71,137 @@ const LogSearchConsole = ({ projectId }) => {
     setFilteredLogs(result);
   }, [query, selectedService, selectedLevel, allLogs]);
 
+  // Group logs by traceId
+  const groupLogs = (logs) => {
+    const groups = [];
+    const traceMap = {};
+
+    logs.forEach(log => {
+      if (!log.traceId) {
+        // Standalone log
+        groups.push({ type: 'standalone', log });
+      } else {
+        // Grouped log
+        if (!traceMap[log.traceId]) {
+          traceMap[log.traceId] = {
+            type: 'group',
+            traceId: log.traceId,
+            logs: [],
+            timestamp: log.timestamp,
+            serviceId: log.serviceId,
+            level: log.level
+          };
+          groups.push(traceMap[log.traceId]);
+        }
+        traceMap[log.traceId].logs.push(log);
+        
+        // Update group level (if any child is ERROR, group level is ERROR. If WARN, group level is WARN)
+        if (log.level === 'ERROR') {
+          traceMap[log.traceId].level = 'ERROR';
+        } else if (log.level === 'WARN' && traceMap[log.traceId].level !== 'ERROR') {
+          traceMap[log.traceId].level = 'WARN';
+        }
+
+        // Use the newest log's timestamp as the group's timestamp
+        if (new Date(log.timestamp) > new Date(traceMap[log.traceId].timestamp)) {
+          traceMap[log.traceId].timestamp = log.timestamp;
+        }
+      }
+    });
+
+    return groups;
+  };
+
+  const groupedLogs = groupLogs(filteredLogs);
+
+  const getGroupPreview = (group) => {
+    const errorLog = group.logs.find(l => l.level === 'ERROR');
+    const warnLog = group.logs.find(l => l.level === 'WARN');
+    const primaryLog = errorLog || warnLog || group.logs[group.logs.length - 1];
+    
+    if (!primaryLog) return '';
+    
+    let cleanMsg = primaryLog.message.replace(/[\r\n\s]+/g, ' ').trim();
+    cleanMsg = cleanMsg.replace(/[=]{3,}/g, '').trim();
+    
+    if (cleanMsg.length > 90) {
+      return cleanMsg.substring(0, 90) + '...';
+    }
+    return cleanMsg;
+  };
+
   // Extract unique services for the dropdown
   const uniqueServices = ['ALL', ...new Set(allLogs.map(l => l.serviceId))];
+
+  const renderLogCard = (log, isSubCard = false) => {
+    const semanticNote = parseLogSemanticContext(log);
+    const isError = log.level === 'ERROR';
+    const isWarn = log.level === 'WARN';
+    const isIgnorable = semanticNote.isIgnorable;
+
+    return (
+      <div key={log.id} className={`note-card ${isError ? 'note-error' : isWarn ? 'note-warn' : 'note-info'} ${isIgnorable ? 'note-ignorable' : ''} ${isSubCard ? 'sub-note-card' : ''}`}>
+        
+        <div className="note-header">
+          <div className="note-meta">
+            <Calendar size={14} />
+            {new Date(log.timestamp).toLocaleString()}
+            <span className="separator">•</span>
+            <FileText size={14} />
+            <span className="service-name">{log.serviceId}</span>
+            {log.spanId && (
+              <>
+                <span className="separator">•</span>
+                <span style={{ fontFamily: 'monospace', opacity: 0.6 }}>span: {log.spanId}</span>
+              </>
+            )}
+          </div>
+          <div className={`badge ${isError ? 'error' : isWarn ? 'warn' : 'info'}`}>
+            {log.level}
+          </div>
+        </div>
+
+        {isIgnorable && <div className="ignorable-badge">Ignorable Warning</div>}
+
+        {/* Context Summary */}
+        <div className="note-summary">
+          {semanticNote.action && (
+            <div className="context-pill"><strong>Action:</strong> {semanticNote.action}</div>
+          )}
+          {semanticNote.user && (
+            <div className="context-pill"><strong>User:</strong> {semanticNote.user}</div>
+          )}
+        </div>
+
+        <div className="note-message">
+          {semanticNote.extractedMessage}
+        </div>
+
+        {/* AI Suggestions Engine */}
+        {(isError || isWarn) && !isIgnorable && semanticNote.suggestedFix && (
+          <div className="ai-suggestion-box">
+            <div className="ai-header">
+              <Wrench size={14} /> AI Diagnostics
+            </div>
+            <div className="ai-cause"><strong>Root Cause:</strong> {semanticNote.rootCause}</div>
+            <div className="ai-fix">
+              <strong>Suggested Fix:</strong>
+              <pre>{semanticNote.suggestedFix}</pre>
+            </div>
+          </div>
+        )}
+
+        {/* Collapsed Raw Stack Trace */}
+        {semanticNote.hasStackTrace && (
+          <details className="raw-log-details">
+            <summary>View Raw Stack Trace</summary>
+            <pre className="raw-log-block">{log.message}</pre>
+          </details>
+        )}
+
+      </div>
+    );
+  };
 
   return (
     <div className="card console-card">
@@ -105,72 +242,59 @@ const LogSearchConsole = ({ projectId }) => {
 
       {/* Smart Notes Feed */}
       <div className="notes-feed">
-        {!loading && filteredLogs.length === 0 && (
+        {!loading && groupedLogs.length === 0 && (
           <div className="empty-state">No logs match your filters.</div>
         )}
 
-        {filteredLogs.map(log => {
-          const semanticNote = parseLogSemanticContext(log);
-          const isError = log.level === 'ERROR';
-          const isWarn = log.level === 'WARN';
-          const isIgnorable = semanticNote.isIgnorable;
-
-          return (
-            <div key={log.id} className={`note-card ${isError ? 'note-error' : isWarn ? 'note-warn' : 'note-info'} ${isIgnorable ? 'note-ignorable' : ''}`}>
-              
-              <div className="note-header">
-                <div className="note-meta">
-                  <Calendar size={14} />
-                  {new Date(log.timestamp).toLocaleString()}
-                  <span className="separator">•</span>
-                  <FileText size={14} />
-                  <span className="service-name">{log.serviceId}</span>
-                </div>
-                <div className={`badge ${isError ? 'error' : isWarn ? 'warn' : 'info'}`}>
-                  {log.level}
-                </div>
-              </div>
-
-              {isIgnorable && <div className="ignorable-badge">Ignorable Warning</div>}
-
-              {/* Context Summary */}
-              <div className="note-summary">
-                {semanticNote.action && (
-                  <div className="context-pill"><strong>Action:</strong> {semanticNote.action}</div>
-                )}
-                {semanticNote.user && (
-                  <div className="context-pill"><strong>User:</strong> {semanticNote.user}</div>
-                )}
-              </div>
-
-              <div className="note-message">
-                {semanticNote.extractedMessage}
-              </div>
-
-              {/* AI Suggestions Engine */}
-              {(isError || isWarn) && !isIgnorable && semanticNote.suggestedFix && (
-                <div className="ai-suggestion-box">
-                  <div className="ai-header">
-                    <Wrench size={14} /> AI Diagnostics
+        {groupedLogs.map(item => {
+          if (item.type === 'standalone') {
+            return renderLogCard(item.log);
+          } else {
+            const isOpen = openTraces[item.traceId] || false;
+            const isError = item.level === 'ERROR';
+            const isWarn = item.level === 'WARN';
+            
+            return (
+              <div 
+                key={item.traceId} 
+                className={`note-card ${isError ? 'note-error' : isWarn ? 'note-warn' : 'note-info'}`}
+                style={{ cursor: 'pointer', padding: '1rem', borderLeftWidth: '4px' }}
+              >
+                <div 
+                  className="note-header"
+                  onClick={() => setOpenTraces(prev => ({ ...prev, [item.traceId]: !isOpen }))}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', gap: '0.5rem' }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <div className="note-meta" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Terminal size={14} style={{ color: 'var(--accent)' }} />
+                      <span style={{ fontWeight: '600', color: 'var(--accent)', fontFamily: 'monospace' }}>
+                        <span style={{ marginRight: '0.5rem', display: 'inline-block', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'none' }}>▶</span>
+                        Transaction [Trace ID: {String(item.traceId).substring(0, 8)}...]
+                      </span>
+                      <span className="trace-group-badge-count">{item.logs.length} events</span>
+                    </div>
+                    <div className="note-meta">
+                      <Calendar size={14} />
+                      {new Date(item.timestamp).toLocaleString()}
+                      <span className={`badge ${isError ? 'error' : isWarn ? 'warn' : 'info'}`}>
+                        {item.level}
+                      </span>
+                    </div>
                   </div>
-                  <div className="ai-cause"><strong>Root Cause:</strong> {semanticNote.rootCause}</div>
-                  <div className="ai-fix">
-                    <strong>Suggested Fix:</strong>
-                    <pre>{semanticNote.suggestedFix}</pre>
+                  {/* One-line preview insight */}
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', paddingLeft: '1.5rem', fontFamily: 'monospace', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%', borderLeft: '2px solid rgba(255, 255, 255, 0.05)' }}>
+                    {getGroupPreview(item)}
                   </div>
                 </div>
-              )}
-
-              {/* Collapsed Raw Stack Trace */}
-              {semanticNote.hasStackTrace && (
-                <details className="raw-log-details">
-                  <summary>View Raw Stack Trace</summary>
-                  <pre className="raw-log-block">{log.message}</pre>
-                </details>
-              )}
-
-            </div>
-          );
+                {isOpen && (
+                  <div className="trace-group-body" style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {item.logs.map(subLog => renderLogCard(subLog, true))}
+                  </div>
+                )}
+              </div>
+            );
+          }
         })}
       </div>
     </div>

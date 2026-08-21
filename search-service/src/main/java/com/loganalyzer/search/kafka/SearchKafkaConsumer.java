@@ -42,12 +42,17 @@ public class SearchKafkaConsumer {
                 projectId = root.path("projectId").asLong();
             }
 
+            String traceId = root.hasNonNull("traceId") ? root.path("traceId").asText() : null;
+            String spanId = root.hasNonNull("spanId") ? root.path("spanId").asText() : null;
+
             LogDocument doc = LogDocument.builder()
                     .projectId(projectId)
                     .serviceId(root.path("serviceId").asText())
                     .level(root.path("level").asText())
                     .message(root.path("message").asText())
                     .timestamp(timestamp)
+                    .traceId(traceId)
+                    .spanId(spanId)
                     .build();
 
             logSearchRepository.save(doc);
