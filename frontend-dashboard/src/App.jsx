@@ -3,13 +3,14 @@ import axios from 'axios';
 import LiveMetricsPanel from './LiveMetricsPanel';
 import LogSearchConsole from './LogSearchConsole';
 import IntegrationHub from './IntegrationHub';
-import { LayoutDashboard, CodeSquare, LogOut, Briefcase, Plus, ShieldCheck, FolderKey } from 'lucide-react';
+import MetricsDashboard from './MetricsDashboard';
+import { LayoutDashboard, CodeSquare, LogOut, Briefcase, Plus, ShieldCheck, FolderKey, TrendingUp } from 'lucide-react';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [email, setEmail] = useState(localStorage.getItem('email') || '');
   const [currentView, setCurrentView] = useState(token ? 'projects' : 'login');
-  
+
   // Auth Form State
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -25,14 +26,12 @@ function App() {
   // Layout Tab State
   const [dashTab, setDashTab] = useState('dashboard');
 
-  // Load projects if token exists
   useEffect(() => {
     if (token) {
       fetchProjects();
     }
   }, [token]);
 
-  // Check for OAuth token/email in URL query parameters on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const urlToken = params.get('token');
@@ -48,7 +47,19 @@ function App() {
       const response = await axios.get('http://localhost:8091/api/projects', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setProjects(response.data);
+
+      const payload = response.data;
+      const normalizedProjects = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.projects)
+        ? payload.projects
+        : [];
+
+      if (!Array.isArray(payload) && !Array.isArray(payload?.projects)) {
+        console.warn('Unexpected /api/projects response shape:', payload);
+      }
+
+      setProjects(normalizedProjects);
     } catch (err) {
       console.error('Failed to fetch projects', err);
       if (err.response && err.response.status === 401) {
@@ -68,7 +79,6 @@ function App() {
       });
 
       if (isRegister) {
-        // Automatically login after signup
         const loginResp = await axios.post('http://localhost:8091/api/auth/login', {
           email: authEmail,
           password: authPassword
@@ -107,7 +117,8 @@ function App() {
     if (!newProjectName.trim()) return;
 
     try {
-      const response = await axios.post('http://localhost:8091/api/projects', 
+      await axios.post(
+        'http://localhost:8091/api/projects',
         { name: newProjectName },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -140,10 +151,10 @@ function App() {
           <form onSubmit={(e) => { e.preventDefault(); handleAuth(isSignup); }}>
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', marginBottom: '0.25rem', color: 'var(--text-muted)' }}>Email</label>
-              <input 
-                type="email" 
-                className="search-input" 
-                style={{ width: '100%', padding: '0.75rem' }} 
+              <input
+                type="email"
+                className="search-input"
+                style={{ width: '100%', padding: '0.75rem' }}
                 value={authEmail}
                 onChange={(e) => setAuthEmail(e.target.value)}
                 required
@@ -151,19 +162,19 @@ function App() {
             </div>
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', marginBottom: '0.25rem', color: 'var(--text-muted)' }}>Password</label>
-              <input 
-                type="password" 
-                className="search-input" 
-                style={{ width: '100%', padding: '0.75rem' }} 
+              <input
+                type="password"
+                className="search-input"
+                style={{ width: '100%', padding: '0.75rem' }}
                 value={authPassword}
                 onChange={(e) => setAuthPassword(e.target.value)}
                 required
               />
             </div>
 
-            <button 
-              type="submit" 
-              className="nav-item active" 
+            <button
+              type="submit"
+              className="nav-item active"
               style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', cursor: 'pointer' }}
               disabled={authLoading}
             >
@@ -178,16 +189,16 @@ function App() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column' }}>
-            <button 
+            <button
               onClick={() => window.location.href = 'http://localhost:8091/oauth2/authorization/google'}
-              className="nav-item" 
+              className="nav-item"
               style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}
             >
               Continue with Google
             </button>
-            <button 
+            <button
               onClick={() => window.location.href = 'http://localhost:8091/oauth2/authorization/github'}
-              className="nav-item" 
+              className="nav-item"
               style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}
             >
               Continue with GitHub
@@ -211,6 +222,8 @@ function App() {
   }
 
   if (currentView === 'projects') {
+    const safeProjects = Array.isArray(projects) ? projects : [];
+
     return (
       <div className="app-container">
         <header className="header">
@@ -232,8 +245,8 @@ function App() {
         <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
             <h2>Your Projects</h2>
-            <button 
-              className="nav-item active" 
+            <button
+              className="nav-item active"
               onClick={() => setIsCreatingProject(!isCreatingProject)}
               style={{ cursor: 'pointer' }}
             >
@@ -247,10 +260,10 @@ function App() {
               <form onSubmit={handleCreateProject} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '0.25rem', color: 'var(--text-muted)' }}>Project Name</label>
-                  <input 
-                    type="text" 
-                    className="search-input" 
-                    style={{ width: '100%', padding: '0.75rem' }} 
+                  <input
+                    type="text"
+                    className="search-input"
+                    style={{ width: '100%', padding: '0.75rem' }}
                     placeholder="e.g. Workflow Engine, Payment API"
                     value={newProjectName}
                     onChange={(e) => setNewProjectName(e.target.value)}
@@ -263,7 +276,7 @@ function App() {
             </div>
           )}
 
-          {projects.length === 0 ? (
+          {safeProjects.length === 0 ? (
             <div className="card" style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)' }}>
               <Briefcase size={48} style={{ margin: '0 auto 1rem', display: 'block', opacity: 0.5 }} />
               <p style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>No projects configured yet.</p>
@@ -271,10 +284,10 @@ function App() {
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-              {projects.map(proj => (
-                <div 
-                  key={proj.id} 
-                  className="card" 
+              {safeProjects.map((proj) => (
+                <div
+                  key={proj.id}
+                  className="card"
                   style={{ padding: '1.5rem', cursor: 'pointer', transition: 'border-color 0.2s', border: '1px solid var(--border)' }}
                   onClick={() => selectProject(proj)}
                   onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
@@ -299,14 +312,13 @@ function App() {
     );
   }
 
-  // Dashboard / Integrations View for Selected Project
   return (
     <div className="app-container">
       <header className="header">
         <div className="header-brand">
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Briefcase size={22} style={{ color: 'var(--primary)' }} />
-            {selectedProject.name}
+            {selectedProject?.name ?? 'Project'}
           </h1>
           <div className="header-status">
             <span style={{ cursor: 'pointer', color: 'var(--primary)' }} onClick={() => setCurrentView('projects')}>
@@ -314,22 +326,28 @@ function App() {
             </span>
           </div>
         </div>
-        
-        {/* Navigation Menu */}
+
         <nav className="top-nav">
-          <button 
+          <button
             className={`nav-item ${dashTab === 'dashboard' ? 'active' : ''}`}
             onClick={() => setDashTab('dashboard')}
           >
             <LayoutDashboard size={16} />
             Dashboard
           </button>
-          <button 
+          <button
             className={`nav-item ${dashTab === 'integrations' ? 'active' : ''}`}
             onClick={() => setDashTab('integrations')}
           >
             <CodeSquare size={16} />
             Integrations Hub
+          </button>
+          <button
+            className={`nav-item ${dashTab === 'metrics' ? 'active' : ''}`}
+            onClick={() => setDashTab('metrics')}
+          >
+            <TrendingUp size={16} />
+            Metrics
           </button>
           <button className="nav-item" onClick={handleLogout}>
             <LogOut size={16} />
@@ -338,12 +356,13 @@ function App() {
         </nav>
       </header>
 
-      {/* Main Content Area */}
       {dashTab === 'dashboard' ? (
         <div className="dashboard-grid">
-          <LiveMetricsPanel projectId={selectedProject.id} />
-          <LogSearchConsole projectId={selectedProject.id} />
+          <LiveMetricsPanel projectId={selectedProject?.id} />
+          <LogSearchConsole projectId={selectedProject?.id} />
         </div>
+      ) : dashTab === 'metrics' ? (
+        <MetricsDashboard projectId={selectedProject?.id} token={token} />
       ) : (
         <IntegrationHub project={selectedProject} />
       )}

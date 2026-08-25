@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Loader2, Calendar, Filter, Terminal, CheckCircle, AlertTriangle, ShieldAlert, FileText, Wrench } from 'lucide-react';
+import { Search, Loader2, Calendar, Terminal, FileText, Wrench } from 'lucide-react';
 import { parseLogSemanticContext } from './LogSemanticParser';
 
 const LogSearchConsole = ({ projectId }) => {
@@ -10,27 +10,25 @@ const LogSearchConsole = ({ projectId }) => {
   const [error, setError] = useState(null);
   const [openTraces, setOpenTraces] = useState({});
 
-  const handleToggle = (traceId, event) => {
-    setOpenTraces(prev => ({
-      ...prev,
-      [traceId]: event.target.open
-    }));
-  };
-
-  // Filter States
   const [query, setQuery] = useState('');
   const [selectedService, setSelectedService] = useState('ALL');
   const [selectedLevel, setSelectedLevel] = useState('ALL');
 
-  // Fetch all logs initially and set up polling
   useEffect(() => {
     if (!projectId) return;
-    
+
     const fetchLogs = async (isInitial = false) => {
       if (isInitial) setLoading(true);
       try {
         const response = await axios.get(`http://localhost:8084/api/v1/search?projectId=${projectId}&query=&t=${new Date().getTime()}`);
-        const sortedLogs = response.data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const payload = response.data;
+        const logs = Array.isArray(payload) ? payload : Array.isArray(payload?.logs) ? payload.logs : [];
+
+        if (!Array.isArray(payload) && !Array.isArray(payload?.logs)) {
+          console.warn('Unexpected /search response shape:', payload);
+        }
+
+        const sortedLogs = logs.slice().sort((a, b) => new Date(b?.timestamp || 0) - new Date(a?.timestamp || 0));
         setAllLogs(sortedLogs);
       } catch (err) {
         console.error('Fetch error', err);
@@ -39,49 +37,44 @@ const LogSearchConsole = ({ projectId }) => {
         if (isInitial) setLoading(false);
       }
     };
-    
-    // Initial fetch
+
     fetchLogs(true);
-
-    // Set up auto-refresh every 5 seconds
-    const interval = setInterval(() => {
-      fetchLogs(false);
-    }, 5000);
-
+    const interval = setInterval(() => fetchLogs(false), 5000);
     return () => clearInterval(interval);
   }, [projectId]);
 
-  // Apply Filters
   useEffect(() => {
-    let result = allLogs;
+    let result = Array.isArray(allLogs) ? allLogs : [];
 
     if (query) {
       const lowerQuery = query.toLowerCase();
-      result = result.filter(log => log.message.toLowerCase().includes(lowerQuery) || log.serviceId.toLowerCase().includes(lowerQuery));
+      result = result.filter((log) => {
+        const msg = String(log?.message ?? '').toLowerCase();
+        const svc = String(log?.serviceId ?? '').toLowerCase();
+        return msg.includes(lowerQuery) || svc.includes(lowerQuery);
+      });
     }
 
     if (selectedService !== 'ALL') {
-      result = result.filter(log => log.serviceId === selectedService);
+      result = result.filter((log) => log?.serviceId === selectedService);
     }
 
     if (selectedLevel !== 'ALL') {
-      result = result.filter(log => log.level === selectedLevel);
+      result = result.filter((log) => log?.level === selectedLevel);
     }
 
     setFilteredLogs(result);
   }, [query, selectedService, selectedLevel, allLogs]);
 
-  // Group logs by traceId
   const groupLogs = (logs) => {
+    const safeLogs = Array.isArray(logs) ? logs : [];
     const groups = [];
     const traceMap = {};
 
-    logs.forEach(log => {
-      if (!log.traceId) {
-        // Standalone log
+    safeLogs.forEach((log) => {
+      if (!log?.traceId) {
         groups.push({ type: 'standalone', log });
       } else {
-        // Grouped log
         if (!traceMap[log.traceId]) {
           traceMap[log.traceId] = {
             type: 'group',
@@ -93,16 +86,15 @@ const LogSearchConsole = ({ projectId }) => {
           };
           groups.push(traceMap[log.traceId]);
         }
+
         traceMap[log.traceId].logs.push(log);
-        
-        // Update group level (if any child is ERROR, group level is ERROR. If WARN, group level is WARN)
+
         if (log.level === 'ERROR') {
           traceMap[log.traceId].level = 'ERROR';
         } else if (log.level === 'WARN' && traceMap[log.traceId].level !== 'ERROR') {
           traceMap[log.traceId].level = 'WARN';
         }
 
-        // Use the newest log's timestamp as the group's timestamp
         if (new Date(log.timestamp) > new Date(traceMap[log.traceId].timestamp)) {
           traceMap[log.traceId].timestamp = log.timestamp;
         }
@@ -115,41 +107,36 @@ const LogSearchConsole = ({ projectId }) => {
   const groupedLogs = groupLogs(filteredLogs);
 
   const getGroupPreview = (group) => {
-    const errorLog = group.logs.find(l => l.level === 'ERROR');
-    const warnLog = group.logs.find(l => l.level === 'WARN');
-    const primaryLog = errorLog || warnLog || group.logs[group.logs.length - 1];
-    
+    const safeGroupLogs = Array.isArray(group?.logs) ? group.logs : [];
+    const errorLog = safeGroupLogs.find((l) => l?.level === 'ERROR');
+    const warnLog = safeGroupLogs.find((l) => l?.level === 'WARN');
+    const primaryLog = errorLog || warnLog || safeGroupLogs[safeGroupLogs.length - 1];
     if (!primaryLog) return '';
-    
-    let cleanMsg = primaryLog.message.replace(/[\r\n\s]+/g, ' ').trim();
+
+    let cleanMsg = String(primaryLog?.message ?? '').replace(/[\r\n\s]+/g, ' ').trim();
     cleanMsg = cleanMsg.replace(/[=]{3,}/g, '').trim();
-    
-    if (cleanMsg.length > 90) {
-      return cleanMsg.substring(0, 90) + '...';
-    }
-    return cleanMsg;
+
+    return cleanMsg.length > 90 ? `${cleanMsg.substring(0, 90)}...` : cleanMsg;
   };
 
-  // Extract unique services for the dropdown
-  const uniqueServices = ['ALL', ...new Set(allLogs.map(l => l.serviceId))];
+  const uniqueServices = ['ALL', ...new Set((Array.isArray(allLogs) ? allLogs : []).map((l) => l?.serviceId).filter(Boolean))];
 
   const renderLogCard = (log, isSubCard = false) => {
-    const semanticNote = parseLogSemanticContext(log);
-    const isError = log.level === 'ERROR';
-    const isWarn = log.level === 'WARN';
-    const isIgnorable = semanticNote.isIgnorable;
+    const semanticNote = parseLogSemanticContext(log || {});
+    const isError = log?.level === 'ERROR';
+    const isWarn = log?.level === 'WARN';
+    const isIgnorable = semanticNote?.isIgnorable;
 
     return (
-      <div key={log.id} className={`note-card ${isError ? 'note-error' : isWarn ? 'note-warn' : 'note-info'} ${isIgnorable ? 'note-ignorable' : ''} ${isSubCard ? 'sub-note-card' : ''}`}>
-        
+      <div key={log?.id || `${log?.timestamp}-${log?.traceId || 'standalone'}`} className={`note-card ${isError ? 'note-error' : isWarn ? 'note-warn' : 'note-info'} ${isIgnorable ? 'note-ignorable' : ''} ${isSubCard ? 'sub-note-card' : ''}`}>
         <div className="note-header">
           <div className="note-meta">
             <Calendar size={14} />
-            {new Date(log.timestamp).toLocaleString()}
+            {log?.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'}
             <span className="separator">•</span>
             <FileText size={14} />
-            <span className="service-name">{log.serviceId}</span>
-            {log.spanId && (
+            <span className="service-name">{log?.serviceId || 'Unknown Service'}</span>
+            {log?.spanId && (
               <>
                 <span className="separator">•</span>
                 <span style={{ fontFamily: 'monospace', opacity: 0.6 }}>span: {log.spanId}</span>
@@ -157,28 +144,22 @@ const LogSearchConsole = ({ projectId }) => {
             )}
           </div>
           <div className={`badge ${isError ? 'error' : isWarn ? 'warn' : 'info'}`}>
-            {log.level}
+            {log?.level || 'INFO'}
           </div>
         </div>
 
         {isIgnorable && <div className="ignorable-badge">Ignorable Warning</div>}
 
-        {/* Context Summary */}
         <div className="note-summary">
-          {semanticNote.action && (
-            <div className="context-pill"><strong>Action:</strong> {semanticNote.action}</div>
-          )}
-          {semanticNote.user && (
-            <div className="context-pill"><strong>User:</strong> {semanticNote.user}</div>
-          )}
+          {semanticNote?.action && <div className="context-pill"><strong>Action:</strong> {semanticNote.action}</div>}
+          {semanticNote?.user && <div className="context-pill"><strong>User:</strong> {semanticNote.user}</div>}
         </div>
 
         <div className="note-message">
-          {semanticNote.extractedMessage}
+          {semanticNote?.extractedMessage || String(log?.message ?? '')}
         </div>
 
-        {/* AI Suggestions Engine */}
-        {(isError || isWarn) && !isIgnorable && semanticNote.suggestedFix && (
+        {(isError || isWarn) && !isIgnorable && semanticNote?.suggestedFix && (
           <div className="ai-suggestion-box">
             <div className="ai-header">
               <Wrench size={14} /> AI Diagnostics
@@ -191,14 +172,12 @@ const LogSearchConsole = ({ projectId }) => {
           </div>
         )}
 
-        {/* Collapsed Raw Stack Trace */}
-        {semanticNote.hasStackTrace && (
+        {semanticNote?.hasStackTrace && (
           <details className="raw-log-details">
             <summary>View Raw Stack Trace</summary>
-            <pre className="raw-log-block">{log.message}</pre>
+            <pre className="raw-log-block">{String(log?.message ?? '')}</pre>
           </details>
         )}
-
       </div>
     );
   };
@@ -210,11 +189,10 @@ const LogSearchConsole = ({ projectId }) => {
         Smart Log Reader
       </div>
 
-      {/* Advanced Filters */}
       <div className="filters-container">
         <div className="search-bar-wrapper">
           <Search size={16} className="search-icon" />
-          <input 
+          <input
             type="text"
             className="search-input"
             placeholder="Search raw text, filenames, or trace IDs..."
@@ -222,10 +200,14 @@ const LogSearchConsole = ({ projectId }) => {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        
+
         <div className="dropdowns">
           <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)} className="filter-select">
-            {uniqueServices.map(svc => <option key={svc} value={svc}>{svc === 'ALL' ? 'All Services' : svc}</option>)}
+            {uniqueServices.map((svc) => (
+              <option key={svc} value={svc}>
+                {svc === 'ALL' ? 'All Services' : svc}
+              </option>
+            ))}
           </select>
 
           <select value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)} className="filter-select">
@@ -238,63 +220,64 @@ const LogSearchConsole = ({ projectId }) => {
       </div>
 
       {error && <p className="error-message">{error}</p>}
-      {loading && <div className="loader"><Loader2 className="spin" size={24}/> Fetching logs...</div>}
+      {loading && <div className="loader"><Loader2 className="spin" size={24} /> Fetching logs...</div>}
 
-      {/* Smart Notes Feed */}
       <div className="notes-feed">
         {!loading && groupedLogs.length === 0 && (
           <div className="empty-state">No logs match your filters.</div>
         )}
 
-        {groupedLogs.map(item => {
+        {groupedLogs.map((item) => {
           if (item.type === 'standalone') {
             return renderLogCard(item.log);
-          } else {
-            const isOpen = openTraces[item.traceId] || false;
-            const isError = item.level === 'ERROR';
-            const isWarn = item.level === 'WARN';
-            
-            return (
-              <div 
-                key={item.traceId} 
-                className={`note-card ${isError ? 'note-error' : isWarn ? 'note-warn' : 'note-info'}`}
-                style={{ cursor: 'pointer', padding: '1rem', borderLeftWidth: '4px' }}
+          }
+
+          const isOpen = !!openTraces[item.traceId];
+          const isError = item.level === 'ERROR';
+          const isWarn = item.level === 'WARN';
+
+          return (
+            <div
+              key={item.traceId}
+              className={`note-card ${isError ? 'note-error' : isWarn ? 'note-warn' : 'note-info'}`}
+              style={{ cursor: 'pointer', padding: '1rem', borderLeftWidth: '4px' }}
+            >
+              <div
+                className="note-header"
+                onClick={() => setOpenTraces((prev) => ({ ...prev, [item.traceId]: !isOpen }))}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', gap: '0.5rem' }}
               >
-                <div 
-                  className="note-header"
-                  onClick={() => setOpenTraces(prev => ({ ...prev, [item.traceId]: !isOpen }))}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', gap: '0.5rem' }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                    <div className="note-meta" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Terminal size={14} style={{ color: 'var(--accent)' }} />
-                      <span style={{ fontWeight: '600', color: 'var(--accent)', fontFamily: 'monospace' }}>
-                        <span style={{ marginRight: '0.5rem', display: 'inline-block', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'none' }}>▶</span>
-                        Transaction [Trace ID: {String(item.traceId).substring(0, 8)}...]
-                      </span>
-                      <span className="trace-group-badge-count">{item.logs.length} events</span>
-                    </div>
-                    <div className="note-meta">
-                      <Calendar size={14} />
-                      {new Date(item.timestamp).toLocaleString()}
-                      <span className={`badge ${isError ? 'error' : isWarn ? 'warn' : 'info'}`}>
-                        {item.level}
-                      </span>
-                    </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                  <div className="note-meta" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Terminal size={14} style={{ color: 'var(--accent)' }} />
+                    <span style={{ fontWeight: '600', color: 'var(--accent)', fontFamily: 'monospace' }}>
+                      <span style={{ marginRight: '0.5rem', display: 'inline-block', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'none' }}>▶</span>
+                      Transaction [Trace ID: {String(item.traceId).substring(0, 8)}...]
+                    </span>
+                    <span className="trace-group-badge-count">{Array.isArray(item.logs) ? item.logs.length : 0} events</span>
                   </div>
-                  {/* One-line preview insight */}
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', paddingLeft: '1.5rem', fontFamily: 'monospace', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%', borderLeft: '2px solid rgba(255, 255, 255, 0.05)' }}>
-                    {getGroupPreview(item)}
+                  <div className="note-meta">
+                    <Calendar size={14} />
+                    {item?.timestamp ? new Date(item.timestamp).toLocaleString() : 'N/A'}
+                    <span className={`badge ${isError ? 'error' : isWarn ? 'warn' : 'info'}`}>{item.level}</span>
                   </div>
                 </div>
-                {isOpen && (
-                  <div className="trace-group-body" style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {item.logs.map(subLog => renderLogCard(subLog, true))}
-                  </div>
-                )}
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', paddingLeft: '1.5rem', fontFamily: 'monospace', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%', borderLeft: '2px solid rgba(255, 255, 255, 0.05)' }}>
+                  {getGroupPreview(item)}
+                </div>
               </div>
-            );
-          }
+
+              {isOpen && (
+                <div className="trace-group-body" style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {(Array.isArray(item.logs) ? item.logs : []).map((subLog, idx) => (
+                    <div key={subLog?.id || `${item.traceId}-${idx}`}>
+                      {renderLogCard(subLog, true)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
         })}
       </div>
     </div>
