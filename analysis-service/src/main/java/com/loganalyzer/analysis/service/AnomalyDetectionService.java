@@ -96,7 +96,9 @@ public class AnomalyDetectionService {
                         .type(type)
                         .build();
 
-                publishAnomaly(anomaly);
+                if (metricsRedisRepository.markAnomalyIfNew(anomaly.getDeduplicationKey())) {
+                    publishAnomaly(anomaly);
+                }
             }
         }
     }
