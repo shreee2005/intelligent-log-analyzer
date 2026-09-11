@@ -39,8 +39,15 @@ public class AnomalyDetector {
     private Anomaly buildAnomaly(LogAggregator aggregator, double severity, String description, Map<String, Object> metrics) {
         return Anomaly.builder()
                 .id(UUID.randomUUID())
+                .schemaVersion(1)
+                .eventType("ANOMALY_DETECTED")
+                .projectId(aggregator.getProjectId())
                 .serviceId(aggregator.getServiceId())
-                .severity(severity)
+                .detector("ERROR_RATE")
+                .severity(severity >= 0.9 ? "CRITICAL" : severity >= 0.6 ? "HIGH" : "MEDIUM")
+                .deduplicationKey(String.format("%s:%s:error-rate:%s",
+                        aggregator.getProjectId(), aggregator.getServiceId(),
+                        aggregator.getWindowEndTime()))
                 .description(description)
                 .timestamp(Instant.now())
                 .metrics(metrics)

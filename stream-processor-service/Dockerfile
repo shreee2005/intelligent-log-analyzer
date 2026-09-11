@@ -3,7 +3,7 @@ WORKDIR /build
 COPY . .
 RUN mvn clean package -pl stream-processor-service -am -DskipTests
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 COPY --from=builder /build/stream-processor-service/target/*.jar app.jar
 EXPOSE 8085

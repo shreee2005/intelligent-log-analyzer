@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Activity, AlertTriangle } from 'lucide-react';
+import { API_BASE_URL } from './config';
 
-const LiveMetricsPanel = ({ projectId }) => {
+const LiveMetricsPanel = ({ projectId, token }) => {
   const [metrics, setMetrics] = useState({ errorCount: 0, totalLogs: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,7 +16,9 @@ const LiveMetricsPanel = ({ projectId }) => {
 
     const fetchMetrics = async () => {
       try {
-        const response = await axios.get(`http://localhost:8083/api/v1/analytics/metrics/${serviceId}?projectId=${projectId}`);
+        const response = await axios.get(`${API_BASE_URL}/api/v1/analytics/metrics/${serviceId}?projectId=${projectId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         setMetrics(response.data);
         setError(null);
       } catch (err) {
@@ -30,7 +33,7 @@ const LiveMetricsPanel = ({ projectId }) => {
     // Poll every 5 seconds
     const interval = setInterval(fetchMetrics, 5000);
     return () => clearInterval(interval);
-  }, [projectId, serviceId]);
+  }, [projectId, serviceId, token]);
 
   return (
     <div className="card">

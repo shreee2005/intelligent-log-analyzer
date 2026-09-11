@@ -26,4 +26,6 @@ public class LogEntry {
     private String rawLog;
     private Instant ingestionTimestamp;
     private Long projectId;
+    private String traceId;
+    private String spanId;
 }

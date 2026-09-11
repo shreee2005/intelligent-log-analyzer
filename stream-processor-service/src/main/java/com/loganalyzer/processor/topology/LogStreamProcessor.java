@@ -13,6 +13,7 @@ import org.apache.kafka.streams.kstream.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.loganalyzer.processor.metrics.LogMetricEvaluator;
 import java.time.Duration;
 
 @Slf4j
@@ -21,6 +22,7 @@ import java.time.Duration;
 public class LogStreamProcessor {
 
     private final AnomalyDetector anomalyDetector;
+    private final LogMetricEvaluator logMetricEvaluator;
 
     @Autowired
     public void buildPipeline(StreamsBuilder streamsBuilder) {
@@ -29,6 +31,9 @@ public class LogStreamProcessor {
                 TopicsConfig.RAW_LOGS_TOPIC,
                 Consumed.with(Serdes.String(), JsonSerdeFactory.createSerde(LogEntry.class))
         );
+
+        // Match logEntry against custom metrics and increment Redis counters
+        logStream = logStream.peek((key, logEntry) -> logMetricEvaluator.evaluateAndIncrement(logEntry));
 
         // Group by serviceId, window by 1 minute, and aggregate
         KTable<Windowed<String>, LogAggregator> aggregatedLogs = logStream

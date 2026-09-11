@@ -30,7 +30,9 @@ public class NotificationService {
             message.setTo(recipientEmail);
             message.setSubject("CRITICAL ALERT: Anomaly Detected in " + event.getServiceId());
             
-            String timeStr = Instant.ofEpochMilli(event.getWindowEnd())
+            String timeStr = event.getTimestamp() == null
+                    ? "unknown"
+                    : event.getTimestamp()
                             .atZone(ZoneId.systemDefault())
                             .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
@@ -42,7 +44,8 @@ public class NotificationService {
                     Details:
                     - Service ID: %s
                     - Severity: %s
-                    - Error Count: %d errors observed
+                    - Detector: %s
+                    - Project ID: %s
                     - Detection Time: %s
                     
                     Please investigate immediately.
@@ -50,8 +53,9 @@ public class NotificationService {
                     - Intelligent Log Analyzer System
                     """, 
                     event.getServiceId(), 
-                    event.getSeverity(), 
-                    event.getErrorCount(), 
+                    event.getSeverity(),
+                    event.getDetector(),
+                    event.getProjectId(),
                     timeStr);
 
             message.setText(text);

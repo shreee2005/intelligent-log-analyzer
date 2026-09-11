@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Terminal, Code, Server, Copy, Check } from 'lucide-react';
+import { API_BASE_URL } from './config';
 
 const IntegrationHub = ({ project }) => {
   const [activeTab, setActiveTab] = useState('java');
@@ -29,7 +30,7 @@ const IntegrationHub = ({ project }) => {
 
     <!-- Intelligent Log Analyzer HTTP Appender -->
     <appender name="HTTP" class="com.loganalyzer.client.HttpAppender">
-        <url>http://localhost:8086/api/v1/logs</url>
+        <url>${API_BASE_URL}/api/v1/logs</url>
         <serviceId>\${spring.application.name}</serviceId>
         <apiKey>${apiKey}</apiKey>
         <format>JSON</format>
@@ -60,7 +61,7 @@ class IntelligentLogTransport extends winston.Transport {
       this.emit('logged', info);
     });
 
-    axios.post('http://localhost:8086/api/v1/logs', {
+    axios.post('${API_BASE_URL}/api/v1/logs', {
       serviceId: this.serviceId,
       level: info.level.toUpperCase(),
       format: 'JSON',
@@ -88,7 +89,7 @@ module.exports = logger;`
       title: "PowerShell (Manual Test)",
       icon: <Terminal size={18} />,
       description: "Use this simple script to manually push logs into the system for testing alerts and dashboards without running a full application.",
-      code: `Invoke-RestMethod -Uri "http://localhost:8086/api/v1/logs" \`
+      code: `Invoke-RestMethod -Uri "${API_BASE_URL}/api/v1/logs" \`
   -Method Post \`
   -Headers @{ "X-API-KEY" = "${apiKey}" } \`
   -ContentType "application/json" \`

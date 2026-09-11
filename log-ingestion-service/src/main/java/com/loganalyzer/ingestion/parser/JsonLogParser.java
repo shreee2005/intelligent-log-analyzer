@@ -52,6 +52,22 @@ public class JsonLogParser implements LogParser {
                 }
             }
 
+            String traceId = rootNode.has("traceId") ? rootNode.get("traceId").asText() : null;
+            if (traceId == null && rootNode.has("trace_id")) {
+                traceId = rootNode.get("trace_id").asText();
+            }
+            if (traceId == null) {
+                traceId = rawLog.getTraceId();
+            }
+
+            String spanId = rootNode.has("spanId") ? rootNode.get("spanId").asText() : null;
+            if (spanId == null && rootNode.has("span_id")) {
+                spanId = rootNode.get("span_id").asText();
+            }
+            if (spanId == null) {
+                spanId = rawLog.getSpanId();
+            }
+
             return LogEntry.builder()
                     .id(UUID.randomUUID())
                     .timestamp(timestamp)
@@ -62,6 +78,8 @@ public class JsonLogParser implements LogParser {
                     .host(rawLog.getHost())
                     .rawLog(rawLog.getMessage())
                     .projectId(rawLog.getProjectId())
+                    .traceId(traceId)
+                    .spanId(spanId)
                     .build();
 
         } catch (Exception e) {
@@ -92,6 +110,8 @@ public class JsonLogParser implements LogParser {
                     .host(rawLog.getHost())
                     .rawLog(rawLog.getMessage())
                     .projectId(rawLog.getProjectId())
+                    .traceId(rawLog.getTraceId())
+                    .spanId(rawLog.getSpanId())
                     .build();
         }
     }
