@@ -2,8 +2,11 @@ package com.loganalyzer.auth.controller;
 
 import com.loganalyzer.auth.model.CustomMetric;
 import com.loganalyzer.auth.repository.CustomMetricRepository;
+import com.loganalyzer.auth.repository.ProjectRepository;
+import com.loganalyzer.auth.repository.UserRepository;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -19,17 +22,28 @@ import java.util.regex.PatternSyntaxException;
 public class CustomMetricController {
 
     private final CustomMetricRepository customMetricRepository;
+    private final ProjectRepository projectRepository;
+    private final UserRepository userRepository;
     private final RedisTemplate<String, String> redisTemplate;
     private static final DateTimeFormatter REDIS_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyyMMddHHmm").withZone(ZoneOffset.UTC);
 
-    public CustomMetricController(CustomMetricRepository customMetricRepository, RedisTemplate<String, String> redisTemplate) {
+    public CustomMetricController(CustomMetricRepository customMetricRepository,
+                                  ProjectRepository projectRepository,
+                                  UserRepository userRepository,
+                                  RedisTemplate<String, String> redisTemplate) {
         this.customMetricRepository = customMetricRepository;
+        this.projectRepository = projectRepository;
+        this.userRepository = userRepository;
         this.redisTemplate = redisTemplate;
     }
 
     @PostMapping
     public ResponseEntity<?> create(@PathVariable Long projectId, @RequestBody Map<String, String> request) {
+        if (!ownsProject(projectId)) {
+            return ResponseEntity.status(404).body(Map.of("error", "Project not found"));
+        }
+
         String name = request.get("name");
         String regexPattern = request.get("regexPattern");
 
@@ -56,12 +70,18 @@ public class CustomMetricController {
 
     @GetMapping
     public ResponseEntity<List<CustomMetric>> list(@PathVariable Long projectId) {
+        if (!ownsProject(projectId)) {
+            return ResponseEntity.notFound().build();
+        }
         List<CustomMetric> metrics = customMetricRepository.findAllByProjectId(projectId);
         return ResponseEntity.ok(metrics);
     }
 
     @DeleteMapping("/{metricId}")
     public ResponseEntity<?> delete(@PathVariable Long projectId, @PathVariable Long metricId) {
+        if (!ownsProject(projectId)) {
+            return ResponseEntity.status(404).body(Map.of("error", "Metric not found"));
+        }
         Optional<CustomMetric> metricOpt = customMetricRepository.findById(metricId);
         if (metricOpt.isEmpty() || !metricOpt.get().getProjectId().equals(projectId)) {
             return ResponseEntity.status(404).body(Map.of("error", "Metric not found"));
@@ -77,6 +97,9 @@ public class CustomMetricController {
             @PathVariable Long metricId,
             @RequestParam(defaultValue = "60") int minutes) {
 
+        if (!ownsProject(projectId)) {
+            return ResponseEntity.status(404).body(Map.of("error", "Metric not found"));
+        }
         Optional<CustomMetric> metricOpt = customMetricRepository.findById(metricId);
         if (metricOpt.isEmpty() || !metricOpt.get().getProjectId().equals(projectId)) {
             return ResponseEntity.status(404).body(Map.of("error", "Metric not found"));
@@ -105,5 +128,18 @@ public class CustomMetricController {
         }
 
         return ResponseEntity.ok(chartPoints);
+    }
+
+    private boolean ownsProject(Long projectId) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || !(authentication.getPrincipal() instanceof String email)) {
+            return false;
+        }
+
+        return userRepository.findByEmail(email)
+                .flatMap(user -> projectRepository.findById(projectId)
+                        .map(project -> project.getOwner().getId().equals(user.getId())))
+                .orElse(false);
     }
 }

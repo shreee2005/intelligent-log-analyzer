@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Search, Loader2, Calendar, Terminal, FileText, Wrench } from 'lucide-react';
 import { parseLogSemanticContext } from './LogSemanticParser';
+import { API_BASE_URL } from './config';
 
-const LogSearchConsole = ({ projectId }) => {
+const LogSearchConsole = ({ projectId, token }) => {
   const [allLogs, setAllLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -14,21 +15,44 @@ const LogSearchConsole = ({ projectId }) => {
   const [selectedService, setSelectedService] = useState('ALL');
   const [selectedLevel, setSelectedLevel] = useState('ALL');
 
-  useEffect(() => {
+    useEffect(() => {
     if (!projectId) return;
 
-    const fetchLogs = async (isInitial = false) => {
+    const fetchData = async (isInitial = false) => {
       if (isInitial) setLoading(true);
       try {
-        const response = await axios.get(`http://localhost:8084/api/v1/search?projectId=${projectId}&query=&t=${new Date().getTime()}`);
+        // Fetch logs
+        const headers = { Authorization: `Bearer ${token}` };
+        const response = await axios.get(`${API_BASE_URL}/api/v1/search?projectId=${projectId}&query=&t=${new Date().getTime()}`, { headers });
         const payload = response.data;
         const logs = Array.isArray(payload) ? payload : Array.isArray(payload?.logs) ? payload.logs : [];
 
-        if (!Array.isArray(payload) && !Array.isArray(payload?.logs)) {
-          console.warn('Unexpected /search response shape:', payload);
+        // Fetch anomalies
+        let anomalyLogs = [];
+        try {
+            const anomalyResponse = await axios.get(`${API_BASE_URL}/api/projects/${projectId}/anomalies`, { headers });
+            const parsedAnomalies = anomalyResponse.data.map(str => JSON.parse(str));
+            anomalyLogs = parsedAnomalies.map(a => {
+               // Java Instant serializes to epoch seconds (double) by default, convert to milliseconds for JS Date
+               const tsMs = typeof a.timestamp === 'number' ? a.timestamp * 1000 : a.timestamp;
+               const zVal = a.zScore !== undefined ? a.zScore : a.zscore;
+               
+               return {
+                 id: 'anomaly-' + a.timestamp + '-' + a.serviceId,
+                 timestamp: tsMs,
+                 serviceId: a.serviceId,
+                 level: 'ANOMALY',
+                 message: `ML System Insight: ${a.type === 'SPIKE' ? 'Massive Spike' : 'Silent Failure (Drop)'} detected in log volume. Z-Score: ${Number(zVal || 0).toFixed(2)}. (Volume: ${a.currentVolume}, Normal: ~${Number(a.meanVolume || 0).toFixed(0)})`,
+                 isAnomaly: true,
+                 anomalyData: a
+               };
+            });
+        } catch (anomalyErr) {
+            console.warn('Could not fetch anomalies:', anomalyErr);
         }
 
-        const sortedLogs = logs.slice().sort((a, b) => new Date(b?.timestamp || 0) - new Date(a?.timestamp || 0));
+        const combinedLogs = [...logs, ...anomalyLogs];
+        const sortedLogs = combinedLogs.sort((a, b) => new Date(b?.timestamp || 0) - new Date(a?.timestamp || 0));
         setAllLogs(sortedLogs);
       } catch (err) {
         console.error('Fetch error', err);
@@ -38,10 +62,10 @@ const LogSearchConsole = ({ projectId }) => {
       }
     };
 
-    fetchLogs(true);
-    const interval = setInterval(() => fetchLogs(false), 5000);
+    fetchData(true);
+    const interval = setInterval(() => fetchData(false), 5000);
     return () => clearInterval(interval);
-  }, [projectId]);
+  }, [projectId, token]);
 
   useEffect(() => {
     let result = Array.isArray(allLogs) ? allLogs : [];
@@ -125,10 +149,18 @@ const LogSearchConsole = ({ projectId }) => {
     const semanticNote = parseLogSemanticContext(log || {});
     const isError = log?.level === 'ERROR';
     const isWarn = log?.level === 'WARN';
+    const isAnomaly = log?.isAnomaly;
     const isIgnorable = semanticNote?.isIgnorable;
 
+    const getCardClass = () => {
+        if (isAnomaly) return 'note-anomaly';
+        if (isError) return 'note-error';
+        if (isWarn) return 'note-warn';
+        return 'note-info';
+    };
+
     return (
-      <div key={log?.id || `${log?.timestamp}-${log?.traceId || 'standalone'}`} className={`note-card ${isError ? 'note-error' : isWarn ? 'note-warn' : 'note-info'} ${isIgnorable ? 'note-ignorable' : ''} ${isSubCard ? 'sub-note-card' : ''}`}>
+      <div key={log?.id || `${log?.timestamp}-${log?.traceId || 'standalone'}`} className={`note-card ${getCardClass()} ${isIgnorable ? 'note-ignorable' : ''} ${isSubCard ? 'sub-note-card' : ''}`}>
         <div className="note-header">
           <div className="note-meta">
             <Calendar size={14} />
@@ -143,8 +175,8 @@ const LogSearchConsole = ({ projectId }) => {
               </>
             )}
           </div>
-          <div className={`badge ${isError ? 'error' : isWarn ? 'warn' : 'info'}`}>
-            {log?.level || 'INFO'}
+          <div className={`badge ${isAnomaly ? 'anomaly' : isError ? 'error' : isWarn ? 'warn' : 'info'}`}>
+            {isAnomaly ? '🚨 ' + log?.level : log?.level || 'INFO'}
           </div>
         </div>
 
@@ -158,6 +190,36 @@ const LogSearchConsole = ({ projectId }) => {
         <div className="note-message">
           {semanticNote?.extractedMessage || String(log?.message ?? '')}
         </div>
+
+        {isAnomaly && log?.anomalyData && (() => {
+          const a = log.anomalyData;
+          const zVal = a.zScore !== undefined ? a.zScore : a.zscore;
+          const isDrop = a.type === 'DROP';
+          
+          const rootCause = isDrop
+            ? `Service "${a.serviceId}" has completely stopped emitting logs. The expected baseline is ~${Number(a.meanVolume || 0).toFixed(0)} logs/min, but the current volume dropped to ${a.currentVolume}. This indicates the service may have crashed, lost network connectivity, or its container was terminated unexpectedly.`
+            : `Service "${a.serviceId}" is emitting an abnormally high volume of logs. The expected baseline is ~${Number(a.meanVolume || 0).toFixed(0)} logs/min, but the current volume spiked to ${a.currentVolume}. This could indicate an infinite retry loop, a cascading failure, a DDoS attack, or a severe bug generating excessive logging.`;
+
+          const suggestedFix = isDrop
+            ? `1. Check if the container/pod is still running:\n   docker ps | grep ${a.serviceId}\n   kubectl get pods | grep ${a.serviceId}\n\n2. Check recent container logs for crash reason:\n   docker logs --tail 50 ${a.serviceId}\n\n3. If the container exited, restart it:\n   docker compose up -d ${a.serviceId}\n\n4. Verify network connectivity between services.\n\n5. Check health endpoint: curl http://${a.serviceId}:PORT/actuator/health`
+            : `1. Check for infinite retry loops or recursive calls in ${a.serviceId}.\n\n2. Look for cascading errors in downstream dependencies.\n\n3. Check CPU/Memory usage:\n   docker stats ${a.serviceId}\n\n4. Consider enabling rate-limiting on the logging framework.\n\n5. If under attack, enable WAF rules or IP blocking.\n\n6. Restart the service if it's stuck:\n   docker compose restart ${a.serviceId}`;
+
+          return (
+            <div className="ai-suggestion-box" style={{ borderColor: 'rgba(239, 68, 68, 0.3)', backgroundColor: 'rgba(239, 68, 68, 0.05)' }}>
+              <div className="ai-header" style={{ color: '#f87171' }}>
+                <Wrench size={14} /> ML Anomaly Diagnostics
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                <strong>Severity:</strong> Z-Score {Number(zVal || 0).toFixed(2)} ({isDrop ? 'Volume dropped to near-zero' : 'Volume spiked massively'} — threshold is ±3.0)
+              </div>
+              <div className="ai-cause"><strong>Root Cause:</strong> {rootCause}</div>
+              <div className="ai-fix">
+                <strong>Suggested Fix:</strong>
+                <pre>{suggestedFix}</pre>
+              </div>
+            </div>
+          );
+        })()}
 
         {(isError || isWarn) && !isIgnorable && semanticNote?.suggestedFix && (
           <div className="ai-suggestion-box">
@@ -215,6 +277,7 @@ const LogSearchConsole = ({ projectId }) => {
             <option value="INFO">INFO</option>
             <option value="WARN">WARN</option>
             <option value="ERROR">ERROR</option>
+            <option value="ANOMALY">ANOMALY</option>
           </select>
         </div>
       </div>

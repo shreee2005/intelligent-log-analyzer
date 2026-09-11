@@ -1,6 +1,7 @@
 package com.loganalyzer.auth.model;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.UUID;
 
 @Entity
@@ -18,7 +19,16 @@ public class Project {
     private User owner;
 
     @Column(nullable = false, unique = true)
+    @JsonIgnore
     private String apiKey = UUID.randomUUID().toString();
+
+    @Column(name = "api_key_hash", unique = true)
+    @JsonIgnore
+    private String apiKeyHash;
+
+    @Column(name = "api_key_active", nullable = false)
+    @JsonIgnore
+    private boolean apiKeyActive = true;
 
     public Project() {
     }
@@ -60,5 +70,21 @@ public class Project {
 
     public void setApiKey(String apiKey) {
         this.apiKey = apiKey;
+    }
+
+    public String getApiKeyHash() {
+        return apiKeyHash;
+    }
+
+    public void setApiKeyHash(String apiKeyHash) {
+        this.apiKeyHash = apiKeyHash;
+    }
+
+    public boolean isApiKeyActive() {
+        return apiKeyActive;
+    }
+
+    public void setApiKeyActive(boolean apiKeyActive) {
+        this.apiKeyActive = apiKeyActive;
     }
 }

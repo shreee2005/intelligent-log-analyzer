@@ -35,13 +35,14 @@ public class LogIngestionController {
         if (apiKey == null || apiKey.trim().isEmpty()) {
             return Mono.empty();
         }
-        return webClient.get()
-                .uri("/api/projects/key/{apiKey}", apiKey)
+        return webClient.post()
+                .uri("/api/projects/key/validate")
+                .header("X-API-KEY", apiKey)
                 .retrieve()
                 .bodyToMono(Map.class)
                 .map(response -> ((Number) response.get("projectId")).longValue())
                 .onErrorResume(e -> {
-                    log.error("API Key validation failed for key: {}", apiKey, e);
+                    log.error("API key validation failed: {}", e.getMessage());
                     return Mono.empty();
                 });
     }

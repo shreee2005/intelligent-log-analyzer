@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from './config';
 import LiveMetricsPanel from './LiveMetricsPanel';
 import LogSearchConsole from './LogSearchConsole';
 import IntegrationHub from './IntegrationHub';
@@ -33,7 +34,7 @@ function App() {
   }, [token]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     const urlToken = params.get('token');
     const urlEmail = params.get('email');
     if (urlToken && urlEmail) {
@@ -44,7 +45,7 @@ function App() {
 
   const fetchProjects = async () => {
     try {
-      const response = await axios.get('http://localhost:8091/api/projects', {
+      const response = await axios.get(`${API_BASE_URL}/api/projects`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -71,7 +72,7 @@ function App() {
   const handleAuth = async (isRegister) => {
     setAuthError('');
     setAuthLoading(true);
-    const url = isRegister ? 'http://localhost:8091/api/auth/register' : 'http://localhost:8091/api/auth/login';
+    const url = isRegister ? `${API_BASE_URL}/api/auth/register` : `${API_BASE_URL}/api/auth/login`;
     try {
       const response = await axios.post(url, {
         email: authEmail,
@@ -79,7 +80,7 @@ function App() {
       });
 
       if (isRegister) {
-        const loginResp = await axios.post('http://localhost:8091/api/auth/login', {
+        const loginResp = await axios.post(`${API_BASE_URL}/api/auth/login`, {
           email: authEmail,
           password: authPassword
         });
@@ -118,7 +119,7 @@ function App() {
 
     try {
       await axios.post(
-        'http://localhost:8091/api/projects',
+        `${API_BASE_URL}/api/projects`,
         { name: newProjectName },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -190,14 +191,14 @@ function App() {
 
           <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column' }}>
             <button
-              onClick={() => window.location.href = 'http://localhost:8091/oauth2/authorization/google'}
+              onClick={() => window.location.href = `${API_BASE_URL}/oauth2/authorization/google`}
               className="nav-item"
               style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}
             >
               Continue with Google
             </button>
             <button
-              onClick={() => window.location.href = 'http://localhost:8091/oauth2/authorization/github'}
+              onClick={() => window.location.href = `${API_BASE_URL}/oauth2/authorization/github`}
               className="nav-item"
               style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}
             >
@@ -358,8 +359,8 @@ function App() {
 
       {dashTab === 'dashboard' ? (
         <div className="dashboard-grid">
-          <LiveMetricsPanel projectId={selectedProject?.id} />
-          <LogSearchConsole projectId={selectedProject?.id} />
+          <LiveMetricsPanel projectId={selectedProject?.id} token={token} />
+          <LogSearchConsole projectId={selectedProject?.id} token={token} />
         </div>
       ) : dashTab === 'metrics' ? (
         <MetricsDashboard projectId={selectedProject?.id} token={token} />

@@ -203,6 +203,7 @@ body {
   background-color: rgba(255, 255, 255, 0.04);
 }
 
+.note-anomaly { border-left-color: #ef4444; background-color: rgba(239, 68, 68, 0.05); }
 .note-error { border-left-color: var(--error); }
 .note-warn { border-left-color: var(--warning); }
 .note-info { border-left-color: var(--accent); }
@@ -244,6 +245,7 @@ body {
   font-weight: 600;
   background-color: rgba(255, 255, 255, 0.1);
 }
+.badge.anomaly { background-color: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
 .badge.error { background-color: rgba(239, 68, 68, 0.1); color: var(--error); }
 .badge.warn { background-color: rgba(245, 158, 11, 0.1); color: var(--warning); }
 .badge.info { background-color: rgba(99, 102, 241, 0.1); color: var(--accent); }

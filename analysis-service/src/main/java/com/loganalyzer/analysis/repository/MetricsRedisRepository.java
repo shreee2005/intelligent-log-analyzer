@@ -84,4 +84,38 @@ public class MetricsRedisRepository {
                 .timeline(timeline)
                 .build();
     }
+
+    public Set<String> getAllServiceBucketKeys() {
+        return redisTemplate.keys("service_buckets:*");
+    }
+
+    public java.util.List<Long> getVolumesForLast24Hours(Long projectId, String serviceId) {
+        long pid = projectId != null ? projectId : 0L;
+        java.util.List<Long> volumes = new java.util.ArrayList<>();
+        Set<String> buckets = redisTemplate.opsForSet().members("service_buckets:" + pid + ":" + serviceId);
+        if (buckets != null) {
+            for (String bucket : buckets) {
+                String key = KEY_PREFIX + pid + ":" + serviceId + ":" + bucket;
+                Object totalObj = redisTemplate.opsForHash().get(key, "TOTAL");
+                if (totalObj != null) {
+                    volumes.add(Long.parseLong((String) totalObj));
+                }
+            }
+        }
+        return volumes;
+    }
+
+    public long getVolumeForMinute(Long projectId, String serviceId, Instant minute) {
+        long pid = projectId != null ? projectId : 0L;
+        String timeBucket = MINUTE_FORMAT.format(minute);
+        String key = KEY_PREFIX + pid + ":" + serviceId + ":" + timeBucket;
+        Object totalObj = redisTemplate.opsForHash().get(key, "TOTAL");
+        return totalObj != null ? Long.parseLong((String) totalObj) : 0L;
+    }
+
+    public void saveAnomaly(Long projectId, String payload) {
+        String redisKey = "anomalies:" + (projectId != null ? projectId : 0L);
+        redisTemplate.opsForList().leftPush(redisKey, payload);
+        redisTemplate.opsForList().trim(redisKey, 0, 49);
+    }
 }

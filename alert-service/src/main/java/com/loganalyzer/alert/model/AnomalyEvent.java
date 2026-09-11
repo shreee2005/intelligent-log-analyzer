@@ -10,10 +10,15 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AnomalyEvent {
+    private int schemaVersion;
+    private String eventType;
+    private String eventId;
+    private Long projectId;
     private String serviceId;
-    private long errorCount;
-    private double anomalyScore;
-    private String severity; // e.g., "HIGH", "CRITICAL"
-    private long windowStart;
-    private long windowEnd;
+    private String detector;
+    private String severity;
+    private String deduplicationKey;
+    private String description;
+    private java.time.Instant timestamp;
+    private java.util.Map<String, Object> metrics;
 }

@@ -12,6 +12,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LogAggregator {
+    private Long projectId;
     private String serviceId;
     private long totalCount;
     private long errorCount;
@@ -20,6 +21,7 @@ public class LogAggregator {
     private Instant windowEndTime;
 
     public LogAggregator add(LogEntry log) {
+        this.projectId = log.getProjectId();
         this.serviceId = log.getServiceId();
         this.totalCount++;
         

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Plus, Trash2, Activity, RefreshCw, BarChart2 } from 'lucide-react';
+import { API_BASE_URL } from './config';
 
 function MetricsDashboard({ projectId, token }) {
   const [metrics, setMetrics] = useState([]);
@@ -38,7 +39,7 @@ function MetricsDashboard({ projectId, token }) {
     setLoading(true);
     setError('');
     try {
-      const response = await axios.get(`http://localhost:8091/api/projects/${projectId}/metrics`, {
+      const response = await axios.get(`${API_BASE_URL}/api/projects/${projectId}/metrics`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -69,7 +70,7 @@ function MetricsDashboard({ projectId, token }) {
 
     try {
       const response = await axios.get(
-        `http://localhost:8091/api/projects/${projectId}/metrics/${selectedMetric.id}/data?minutes=30`,
+        `${API_BASE_URL}/api/projects/${projectId}/metrics/${selectedMetric.id}/data?minutes=30`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -99,7 +100,7 @@ function MetricsDashboard({ projectId, token }) {
     setSubmitting(true);
     try {
       const response = await axios.post(
-        `http://localhost:8091/api/projects/${projectId}/metrics`,
+        `${API_BASE_URL}/api/projects/${projectId}/metrics`,
         { name: metricName, regexPattern: metricRegex },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -123,7 +124,7 @@ function MetricsDashboard({ projectId, token }) {
     if (!confirm('Are you sure you want to delete this metric rule? History stats in Redis will be lost.')) return;
 
     try {
-      await axios.delete(`http://localhost:8091/api/projects/${projectId}/metrics/${metricId}`, {
+      await axios.delete(`${API_BASE_URL}/api/projects/${projectId}/metrics/${metricId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

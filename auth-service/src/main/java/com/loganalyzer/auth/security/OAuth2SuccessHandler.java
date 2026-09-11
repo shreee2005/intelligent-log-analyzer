@@ -9,7 +9,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.util.Set;
@@ -47,10 +46,10 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         String token = jwtUtil.generateToken(user);
         
-        String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:5173/")
-                .queryParam("token", token)
-                .queryParam("email", user.getEmail())
-                .build().toUriString();
+        String targetUrl = "http://localhost:5173/#token="
+                + java.net.URLEncoder.encode(token, java.nio.charset.StandardCharsets.UTF_8)
+                + "&email="
+                + java.net.URLEncoder.encode(user.getEmail(), java.nio.charset.StandardCharsets.UTF_8);
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
