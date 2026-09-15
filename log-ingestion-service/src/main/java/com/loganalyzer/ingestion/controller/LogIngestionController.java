@@ -3,6 +3,7 @@ package com.loganalyzer.ingestion.controller;
 import com.loganalyzer.ingestion.model.LogIngestionResponse;
 import com.loganalyzer.ingestion.model.LogRaw;
 import com.loganalyzer.ingestion.service.LogIngestionService;
+import com.loganalyzer.ingestion.tracing.TraceContext;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,8 +51,9 @@ public class LogIngestionController {
     @PostMapping
     public Mono<ResponseEntity<LogIngestionResponse>> ingestLog(
             @RequestHeader(value = "X-API-KEY", required = false) String apiKey,
+            @RequestHeader(value = "traceparent", required = false) String traceparent,
             @Valid @RequestBody LogRaw logRaw) {
-        
+        applyTraceContext(logRaw, traceparent);
         return validateApiKey(apiKey)
                 .flatMap(projectId -> {
                     logRaw.setProjectId(projectId);
@@ -72,8 +74,9 @@ public class LogIngestionController {
     @PostMapping("/batch")
     public Mono<ResponseEntity<Flux<LogIngestionResponse>>> ingestLogBatch(
             @RequestHeader(value = "X-API-KEY", required = false) String apiKey,
+            @RequestHeader(value = "traceparent", required = false) String traceparent,
             @Valid @RequestBody List<LogRaw> logRaws) {
-        
+        logRaws.forEach(log -> applyTraceContext(log, traceparent));
         return validateApiKey(apiKey)
                 .map(projectId -> {
                     logRaws.forEach(log -> log.setProjectId(projectId));
@@ -86,5 +89,13 @@ public class LogIngestionController {
                     ResponseEntity<Flux<LogIngestionResponse>> unauthorized = ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
                     return Mono.just(unauthorized);
                 }));
+    }
+
+    private void applyTraceContext(LogRaw logRaw, String traceparent) {
+        TraceContext.Context context = TraceContext.parse(traceparent);
+        if (context.traceId() != null) {
+            logRaw.setTraceId(context.traceId());
+            logRaw.setParentSpanId(context.parentSpanId());
+        }
     }
 }

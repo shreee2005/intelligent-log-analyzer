@@ -43,4 +43,7 @@ public class LogDocument {
 
     @Field(type = FieldType.Keyword)
     private String spanId;
+
+    @Field(type = FieldType.Keyword)
+    private String parentSpanId;
 }

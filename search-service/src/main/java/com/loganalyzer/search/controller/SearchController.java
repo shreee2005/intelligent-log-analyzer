@@ -59,4 +59,16 @@ public class SearchController {
         return ResponseEntity.ok(
                 logSearchRepository.findByProjectIdAndLevel(projectId, level));
     }
+
+    @GetMapping("/trace")
+    public ResponseEntity<?> searchByTrace(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam Long projectId,
+            @RequestParam String traceId) {
+        if (!projectAccessClient.hasAccess(projectId, authorization)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Project access denied");
+        }
+        return ResponseEntity.ok(
+                logSearchRepository.findByProjectIdAndTraceIdOrderByTimestampAsc(projectId, traceId));
+    }
 }

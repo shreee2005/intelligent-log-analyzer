@@ -44,6 +44,7 @@ public class SearchKafkaConsumer {
 
             String traceId = root.hasNonNull("traceId") ? root.path("traceId").asText() : null;
             String spanId = root.hasNonNull("spanId") ? root.path("spanId").asText() : null;
+            String parentSpanId = root.hasNonNull("parentSpanId") ? root.path("parentSpanId").asText() : null;
 
             LogDocument doc = LogDocument.builder()
                     .projectId(projectId)
@@ -53,6 +54,7 @@ public class SearchKafkaConsumer {
                     .timestamp(timestamp)
                     .traceId(traceId)
                     .spanId(spanId)
+                    .parentSpanId(parentSpanId)
                     .build();
 
             logSearchRepository.save(doc);
