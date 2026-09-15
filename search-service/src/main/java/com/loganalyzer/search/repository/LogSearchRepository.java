@@ -16,6 +16,8 @@ public interface LogSearchRepository extends ElasticsearchRepository<LogDocument
     
     // Fuzzy search using Elastic
     List<LogDocument> findByProjectIdAndMessageContaining(Long projectId, String keyword);
+
+    List<LogDocument> findByProjectIdAndTraceIdOrderByTimestampAsc(Long projectId, String traceId);
     
     List<LogDocument> findByTimestampBefore(Instant timestamp);
     

@@ -28,4 +28,5 @@ public class LogRaw {
     private Long projectId;
     private String traceId;
     private String spanId;
+    private String parentSpanId;
 }
