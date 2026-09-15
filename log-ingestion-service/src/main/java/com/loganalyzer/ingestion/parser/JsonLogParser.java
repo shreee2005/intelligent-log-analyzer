@@ -80,6 +80,7 @@ public class JsonLogParser implements LogParser {
                     .projectId(rawLog.getProjectId())
                     .traceId(traceId)
                     .spanId(spanId)
+                    .parentSpanId(rawLog.getParentSpanId())
                     .build();
 
         } catch (Exception e) {
@@ -112,6 +113,7 @@ public class JsonLogParser implements LogParser {
                     .projectId(rawLog.getProjectId())
                     .traceId(rawLog.getTraceId())
                     .spanId(rawLog.getSpanId())
+                    .parentSpanId(rawLog.getParentSpanId())
                     .build();
         }
     }
