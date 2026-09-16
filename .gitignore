@@ -55,7 +55,7 @@ docs/Progress1.txt
 # Logs
 logs/
 *.log.*
-
+/docs/**.md
 # Node.js (for frontend)
 node_modules/
 npm-debug.log

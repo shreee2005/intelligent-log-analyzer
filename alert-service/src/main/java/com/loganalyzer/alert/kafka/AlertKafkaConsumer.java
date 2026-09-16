@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loganalyzer.alert.model.AnomalyEvent;
 import com.loganalyzer.alert.service.NotificationService;
+import com.loganalyzer.alert.service.WebhookService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -16,6 +17,7 @@ public class AlertKafkaConsumer {
 
     private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
+    private final WebhookService webhookService;
 
     @KafkaListener(topics = "logs.anomalies", groupId = "alert-service-group")
     public void consumeAnomaly(String message) {
@@ -27,6 +29,7 @@ public class AlertKafkaConsumer {
             // We only send alerts for HIGH or CRITICAL severities
             if ("HIGH".equalsIgnoreCase(event.getSeverity()) || "CRITICAL".equalsIgnoreCase(event.getSeverity())) {
                 notificationService.sendAnomalyAlert(event);
+                webhookService.enqueue(event);
             } else {
                 log.debug("Ignoring LOW/MEDIUM severity anomaly for service {}", event.getServiceId());
             }
