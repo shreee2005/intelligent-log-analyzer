@@ -12,11 +12,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import reactor.core.publisher.Mono;
 
 @RestController
-@CrossOrigin(origins = "*")
 @RequestMapping("/api/v1/analytics")
 @RequiredArgsConstructor
 public class AnalyticsController {

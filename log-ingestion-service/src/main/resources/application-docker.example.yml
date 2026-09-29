@@ -5,7 +5,7 @@ spring:
   application:
     name: log-ingestion-service
   kafka:
-    bootstrap-servers: kafka:9092
+    bootstrap-servers: kafka:29092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer

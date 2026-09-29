@@ -4,7 +4,7 @@ import com.loganalyzer.processor.model.CustomMetric;
 import com.loganalyzer.processor.model.LogEntry;
 import com.loganalyzer.processor.repository.CustomMetricRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -22,13 +22,13 @@ import java.util.regex.PatternSyntaxException;
 public class LogMetricEvaluator {
 
     private final CustomMetricRepository customMetricRepository;
-    private final RedisTemplate<String, String> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
     private final List<CachedMetric> cachedMetrics = new CopyOnWriteArrayList<>();
 
     private static final DateTimeFormatter REDIS_KEY_FORMATTER =
             DateTimeFormatter.ofPattern("yyyyMMddHHmm").withZone(ZoneOffset.UTC);
 
-    public LogMetricEvaluator(CustomMetricRepository customMetricRepository, RedisTemplate<String, String> redisTemplate) {
+    public LogMetricEvaluator(CustomMetricRepository customMetricRepository, StringRedisTemplate redisTemplate) {
         this.customMetricRepository = customMetricRepository;
         this.redisTemplate = redisTemplate;
         // Run initial load

@@ -9,6 +9,5 @@ import java.util.Optional;
 @Repository
 public interface ProjectRepository extends JpaRepository<Project, Long> {
     List<Project> findAllByOwnerId(Long ownerId);
-    Optional<Project> findByApiKey(String apiKey);
     Optional<Project> findByApiKeyHash(String apiKeyHash);
 }

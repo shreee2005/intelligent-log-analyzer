@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 @Repository
 public interface LogSearchRepository extends ElasticsearchRepository<LogDocument, String> {
@@ -17,10 +18,15 @@ public interface LogSearchRepository extends ElasticsearchRepository<LogDocument
     // Fuzzy search using Elastic
     List<LogDocument> findByProjectIdAndMessageContaining(Long projectId, String keyword);
 
+    List<LogDocument> findByProjectIdOrderByTimestampDesc(Long projectId);
+
     List<LogDocument> findByProjectIdAndTraceIdOrderByTimestampAsc(Long projectId, String traceId);
     
     List<LogDocument> findByTimestampBefore(Instant timestamp);
     
     // Deletes logs older than a specific time for our Data Retention Policy
     void deleteByTimestampBefore(Instant timestamp);
+    
+    // Get distinct service IDs for a project
+    Set<String> findDistinctServiceIdByProjectId(Long projectId);
 }

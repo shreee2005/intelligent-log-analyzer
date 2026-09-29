@@ -6,11 +6,10 @@
         <groupId>com.loganalyzer</groupId>
         <artifactId>intelligent-log-analyzer</artifactId>
         <version>1.0.0</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
-	<groupId>com.loganalyzer</groupId>
 	<artifactId>log-ingestion-service</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<name/>
+    <name>log-ingestion-service</name>
 	<description/>
 	<url/>
 	<licenses>

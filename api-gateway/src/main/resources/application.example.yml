@@ -6,27 +6,41 @@ spring:
     name: api-gateway
   cloud:
     gateway:
-      routes:
-        - id: ingestion-service
-          uri: http://localhost:8086
-          predicates:
-            - Path=/api/ingestion/**
-        - id: processor-service
-          uri: http://localhost:8082
-          predicates:
-            - Path=/api/processor/**
-        - id: analysis-service
-          uri: http://localhost:8083
-          predicates:
-            - Path=/api/analysis/**
-        - id: search-service
-          uri: http://localhost:8084
-          predicates:
-            - Path=/api/search/**
-        - id: alert-service
-          uri: http://localhost:8085
-          predicates:
-            - Path=/api/alert/**
+      server:
+        webmvc:
+          routes:
+            - id: analysis-anomalies
+              uri: ${ANALYSIS_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/projects/*/anomalies/**
+            - id: alert-webhooks
+              uri: ${ALERT_SERVICE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/projects/*/webhooks/**
+            - id: auth-service
+              uri: ${AUTH_SERVICE_URL:http://localhost:8091}
+              predicates:
+                - Path=/api/auth/**,/api/projects/**
+            - id: ingestion-service
+              uri: ${LOG_INGESTION_URL:http://localhost:8086}
+              predicates:
+                - Path=/api/ingestion/**,/api/v1/logs/**
+            - id: processor-service
+              uri: ${STREAM_PROCESSOR_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/processor/**
+            - id: analysis-service
+              uri: ${ANALYSIS_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/analysis/**,/api/v1/analytics/**
+            - id: search-service
+              uri: ${SEARCH_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/search/**,/api/v1/search/**
+            - id: alert-service
+              uri: ${ALERT_SERVICE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/alert/**
 
 management:
   endpoints:

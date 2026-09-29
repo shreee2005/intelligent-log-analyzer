@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from './config';
+import { AUTH_BASE_URL } from './config';
 import LiveMetricsPanel from './LiveMetricsPanel';
 import LogSearchConsole from './LogSearchConsole';
 import IntegrationHub from './IntegrationHub';
 import MetricsDashboard from './MetricsDashboard';
-import { LayoutDashboard, CodeSquare, LogOut, Briefcase, Plus, ShieldCheck, FolderKey, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, CodeSquare, LogOut, Briefcase, Plus, ShieldCheck, FolderKey, TrendingUp, Settings, RotateCcw, ShieldAlert, Key } from 'lucide-react';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
@@ -26,6 +27,12 @@ function App() {
 
   // Layout Tab State
   const [dashTab, setDashTab] = useState('dashboard');
+  
+  // Key Rotation State
+  const [rotatingKey, setRotatingKey] = useState(false);
+  const [revokingKey, setRevokingKey] = useState(false);
+  const [newApiKey, setNewApiKey] = useState(null);
+  const [keyError, setKeyError] = useState('');
 
   useEffect(() => {
     if (token) {
@@ -113,27 +120,105 @@ function App() {
     setCurrentView('login');
   };
 
+  const handleRotateApiKey = async () => {
+    if (!selectedProject) return;
+    setRotatingKey(true);
+    setKeyError('');
+    setNewApiKey(null);
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/api/projects/${selectedProject.id}/key/rotate`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const rawApiKey = response.data.apiKey;
+      setNewApiKey(rawApiKey);
+      localStorage.setItem(`project_api_key_${selectedProject.id}`, rawApiKey);
+      setSelectedProject(prev => ({ ...prev, apiKey: rawApiKey }));
+    } catch (err) {
+      console.error('Failed to rotate API key', err);
+      setKeyError(err.response?.data?.error || 'Failed to rotate API key');
+    } finally {
+      setRotatingKey(false);
+    }
+  };
+
+  const handleRevokeApiKey = async () => {
+    if (!selectedProject) return;
+    if (!window.confirm('Are you sure you want to revoke the API key? This will stop all log ingestion for this project until a new key is generated.')) {
+      return;
+    }
+    setRevokingKey(true);
+    setKeyError('');
+    try {
+      await axios.post(
+        `${API_BASE_URL}/api/projects/${selectedProject.id}/key/revoke`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      localStorage.removeItem(`project_api_key_${selectedProject.id}`);
+      setSelectedProject(prev => ({ ...prev, apiKey: '' }));
+      setNewApiKey(null);
+    } catch (err) {
+      console.error('Failed to revoke API key', err);
+      setKeyError(err.response?.data?.error || 'Failed to revoke API key');
+    } finally {
+      setRevokingKey(false);
+    }
+  };
+
   const handleCreateProject = async (e) => {
     e.preventDefault();
     if (!newProjectName.trim()) return;
 
     try {
-      await axios.post(
+      const response = await axios.post(
         `${API_BASE_URL}/api/projects`,
         { name: newProjectName },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setNewProjectName('');
       setIsCreatingProject(false);
+      if (response.data?.apiKey) {
+        localStorage.setItem(
+          `project_api_key_${response.data.id}`,
+          response.data.apiKey
+        );
+      }
+      
+      const newProject = {
+        ...response.data,
+        apiKey: response.data.apiKey || ''
+      };
+
       fetchProjects();
+      setSelectedProject(newProject);
+      setCurrentView('dashboard');
+      setDashTab('integrations');
     } catch (err) {
       console.error('Failed to create project', err);
-      alert('Error creating project. Check if your connection is valid.');
+      alert(err.response?.data?.error || 'Error creating project. Check if auth-service and the gateway are running.');
     }
   };
 
   const selectProject = (project) => {
-    setSelectedProject(project);
+    const storedApiKey = localStorage.getItem(
+      `project_api_key_${project.id}`
+    );
+
+    const projectWithApiKey = {
+      ...project,
+      apiKey: project.apiKey || storedApiKey || ''
+    };
+
+    // If no API key in localStorage, try to fetch it from a new endpoint
+    // Note: For security, API keys are hashed in DB and only returned at creation/rotation
+    // If not in localStorage, user needs to rotate the key to get a new one
+    if (!projectWithApiKey.apiKey) {
+      console.warn(`No API key found in localStorage for project ${project.id}. User may need to rotate the key.`);
+    }
+
+    setSelectedProject(projectWithApiKey);
     setCurrentView('dashboard');
   };
 
@@ -191,14 +276,14 @@ function App() {
 
           <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column' }}>
             <button
-              onClick={() => window.location.href = `${API_BASE_URL}/oauth2/authorization/google`}
+              onClick={() => window.location.href = `${AUTH_BASE_URL}/oauth2/authorization/google`}
               className="nav-item"
               style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}
             >
               Continue with Google
             </button>
             <button
-              onClick={() => window.location.href = `${API_BASE_URL}/oauth2/authorization/github`}
+              onClick={() => window.location.href = `${AUTH_BASE_URL}/oauth2/authorization/github`}
               className="nav-item"
               style={{ width: '100%', padding: '0.75rem', justifyContent: 'center', cursor: 'pointer', border: '1px solid var(--border)' }}
             >
@@ -350,6 +435,13 @@ function App() {
             <TrendingUp size={16} />
             Metrics
           </button>
+          <button
+            className={`nav-item ${dashTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setDashTab('settings')}
+          >
+            <Settings size={16} />
+            Settings
+          </button>
           <button className="nav-item" onClick={handleLogout}>
             <LogOut size={16} />
             Logout
@@ -364,6 +456,96 @@ function App() {
         </div>
       ) : dashTab === 'metrics' ? (
         <MetricsDashboard projectId={selectedProject?.id} token={token} />
+      ) : dashTab === 'settings' ? (
+        <div className="card" style={{ maxWidth: '600px', margin: '2rem auto', padding: '1.5rem' }}>
+          <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Key size={20} style={{ color: 'var(--primary)' }} />
+            API Key Management
+          </h2>
+          
+          <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px' }}>
+            <h3 style={{ marginBottom: '0.5rem' }}>Current API Key</h3>
+            {selectedProject?.apiKey ? (
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <code style={{ flex: 1, minWidth: '200px', padding: '0.5rem', backgroundColor: 'var(--bg-tertiary)', borderRadius: '4px', fontSize: '0.85rem', wordBreak: 'break-all' }}>
+                  {selectedProject.apiKey}
+                </code>
+                <button 
+                  className="btn-copy" 
+                  onClick={() => {
+                    navigator.clipboard.writeText(selectedProject.apiKey);
+                    alert('API Key copied to clipboard');
+                  }}
+                  style={{ padding: '0.5rem 1rem' }}
+                >
+                  Copy
+                </button>
+              </div>
+            ) : (
+              <div style={{ color: 'var(--error)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <ShieldAlert size={16} />
+                <span>No API key available. Keys are only shown once at creation. Use "Rotate API Key" to generate a new one.</span>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <button
+              className="nav-item active"
+              onClick={handleRotateApiKey}
+              disabled={rotatingKey || revokingKey}
+              style={{ cursor: rotatingKey || revokingKey ? 'not-allowed' : 'pointer' }}
+            >
+              <RotateCcw size={16} />
+              {rotatingKey ? 'Rotating...' : 'Rotate API Key'}
+            </button>
+            <button
+              className="nav-item"
+              onClick={handleRevokeApiKey}
+              disabled={rotatingKey || revokingKey}
+              style={{ cursor: rotatingKey || revokingKey ? 'not-allowed' : 'pointer', borderColor: 'var(--error)', color: 'var(--error)' }}
+            >
+              <ShieldAlert size={16} />
+              {revokingKey ? 'Revoking...' : 'Revoke API Key'}
+            </button>
+          </div>
+
+          {newApiKey && (
+            <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--success)', borderRadius: '8px' }}>
+              <h4 style={{ color: 'var(--success)', marginBottom: '0.5rem' }}>New API Key Generated!</h4>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                Copy this key now. It will not be shown again.
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <code style={{ flex: 1, minWidth: '200px', padding: '0.5rem', backgroundColor: 'var(--bg-tertiary)', borderRadius: '4px', fontSize: '0.85rem', wordBreak: 'break-all', color: 'var(--success)' }}>
+                  {newApiKey}
+                </code>
+                <button 
+                  className="btn-copy" 
+                  onClick={() => {
+                    navigator.clipboard.writeText(newApiKey);
+                    alert('New API Key copied to clipboard');
+                  }}
+                  style={{ padding: '0.5rem 1rem' }}
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          )}
+
+          {keyError && (
+            <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error)', borderRadius: '8px', color: 'var(--error)' }}>
+              {keyError}
+            </div>
+          )}
+
+          <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            <p><strong>Note:</strong> API keys are hashed in the database for security. The raw key is only displayed at creation or rotation time.</p>
+            <p>Store your API key securely. If lost, you must rotate to generate a new one.</p>
+            <p>Rotating a key immediately invalidates the old key. Update your log shippers (Logback, Winston, etc.) with the new key.</p>
+          </div>
+        </div>
       ) : (
         <IntegrationHub project={selectedProject} />
       )}
