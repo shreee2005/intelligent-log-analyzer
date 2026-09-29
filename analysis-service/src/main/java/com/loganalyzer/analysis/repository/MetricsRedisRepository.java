@@ -139,10 +139,11 @@ public class MetricsRedisRepository {
 
     private Set<String> activeBuckets(Long projectId, String serviceId) {
         long pid = projectId != null ? projectId : 0L;
-        Set<String> buckets = redisTemplate.opsForSet().members(serviceBucketKey(pid, serviceId));
-        if (buckets == null) {
+        Set<String> members = redisTemplate.opsForSet().members(serviceBucketKey(pid, serviceId));
+        if (members == null || members.isEmpty()) {
             return Set.of();
         }
+        Set<String> buckets = new java.util.HashSet<>(members);
         Instant cutoff = Instant.now().minus(25, java.time.temporal.ChronoUnit.HOURS);
         buckets.removeIf(bucket -> {
             Instant bucketTime = parseBucket(bucket);

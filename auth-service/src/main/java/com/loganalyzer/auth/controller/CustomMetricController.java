@@ -4,7 +4,7 @@ import com.loganalyzer.auth.model.CustomMetric;
 import com.loganalyzer.auth.repository.CustomMetricRepository;
 import com.loganalyzer.auth.repository.ProjectRepository;
 import com.loganalyzer.auth.repository.UserRepository;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -24,14 +24,14 @@ public class CustomMetricController {
     private final CustomMetricRepository customMetricRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
-    private final RedisTemplate<String, String> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
     private static final DateTimeFormatter REDIS_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyyMMddHHmm").withZone(ZoneOffset.UTC);
 
     public CustomMetricController(CustomMetricRepository customMetricRepository,
                                   ProjectRepository projectRepository,
                                   UserRepository userRepository,
-                                  RedisTemplate<String, String> redisTemplate) {
+                                  StringRedisTemplate redisTemplate) {
         this.customMetricRepository = customMetricRepository;
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
@@ -113,12 +113,14 @@ public class CustomMetricController {
             String redisTimeStr = REDIS_TIME_FORMATTER.format(pointTime);
 
             String key = String.format("metrics:%d:%d:%s", projectId, metricId, redisTimeStr);
-            String rawVal = redisTemplate.opsForValue().get(key);
             long count = 0;
-            if (rawVal != null) {
-                try {
+            try {
+                String rawVal = redisTemplate.opsForValue().get(key);
+                if (rawVal != null) {
                     count = Long.parseLong(rawVal);
-                } catch (NumberFormatException ignored) {}
+                }
+            } catch (Exception ignored) {
+                // Redis outages should not fail the dashboard; return zeros for that bucket.
             }
 
             Map<String, Object> point = new HashMap<>();

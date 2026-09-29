@@ -27,7 +27,7 @@ public class LogIngestionController {
     private final WebClient webClient;
 
     public LogIngestionController(LogIngestionService logIngestionService,
-                                  @Value("${auth.service.url:http://auth-service:8091}") String authServiceUrl) {
+                                  @Value("${auth.service.url:http://localhost:8091}") String authServiceUrl) {
         this.logIngestionService = logIngestionService;
         this.webClient = WebClient.builder().baseUrl(authServiceUrl).build();
     }

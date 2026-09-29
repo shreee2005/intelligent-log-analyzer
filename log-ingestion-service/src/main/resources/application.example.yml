@@ -10,6 +10,10 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
+auth:
+  service:
+    url: ${AUTH_SERVICE_URL:http://localhost:8091}
+
 management:
   endpoints:
     web:

@@ -30,6 +30,9 @@ public class AuthController {
     public ResponseEntity<?> register(@RequestBody Map<String, String> request) {
         String email = request.get("email");
         String password = request.get("password");
+        if (email == null || email.isBlank() || password == null || password.isBlank()) {
+            return ResponseEntity.badRequest().body(Collections.singletonMap("error", "Email and password are required"));
+        }
 
         if (userRepository.findByEmail(email).isPresent()) {
             return ResponseEntity.badRequest().body(Collections.singletonMap("error", "Email already exists"));
@@ -48,6 +51,9 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
         String email = request.get("email");
         String password = request.get("password");
+        if (email == null || password == null) {
+            return ResponseEntity.status(401).body(Collections.singletonMap("error", "Invalid credentials"));
+        }
 
         return userRepository.findByEmail(email)
                 .filter(user -> passwordEncoder.matches(password, user.getPasswordHash()))

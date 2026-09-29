@@ -42,15 +42,9 @@ docker-compose.override.yml
 .env
 .env.local
 docs/Progress1.txt
-# Application configuration (sensitive data)
-**/application.yml
-**/application-*.yml
-**/application.properties
-**/application-*.properties
-
-# Keep example/template configs
-!**/application*.example.yml
-!**/application*.example.properties
+# Local secrets belong in .env, not in application.yml templates
+**/application-local.yml
+**/application-local.properties
 
 # Logs
 logs/
