@@ -6,11 +6,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "*")
 @RequestMapping("/api/projects/{projectId}/anomalies")
 @RequiredArgsConstructor
 public class AnomalyController {

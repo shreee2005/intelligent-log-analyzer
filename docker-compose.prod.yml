@@ -37,9 +37,9 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-loganalyzer}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your_secure_db_password}
     ports:
       - "5432:5432"
 
@@ -47,8 +47,6 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
-
-  # --- MICROSERVICES ---
 
   log-ingestion-service:
     build:
@@ -62,6 +60,7 @@ services:
       - AUTH_SERVICE_URL=http://auth-service:8091
     depends_on:
       - kafka
+      - auth-service
 
   stream-processor-service:
     build:
@@ -69,14 +68,14 @@ services:
       dockerfile: stream-processor-service/Dockerfile
     restart: always
     ports:
-      - "8085:8085"
+      - "8082:8082"
     environment:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-loganalyzer}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-admin}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-your_secure_db_password}
     depends_on:
       - kafka
       - redis
@@ -88,7 +87,7 @@ services:
       dockerfile: alert-service/Dockerfile
     restart: always
     ports:
-      - "8082:8081"
+      - "8085:8085"
     environment:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     depends_on:
@@ -104,9 +103,11 @@ services:
     environment:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
+      - AUTH_SERVICE_URL=http://auth-service:8091
     depends_on:
       - kafka
       - elasticsearch
+      - auth-service
 
   analysis-service:
     build:
@@ -116,16 +117,14 @@ services:
     ports:
       - "8083:8083"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
+      - AUTH_SERVICE_URL=http://auth-service:8091
     depends_on:
       - kafka
-      - postgres
       - redis
+      - auth-service
 
   api-gateway:
     build:
@@ -135,9 +134,19 @@ services:
     ports:
       - "8080:8080"
     environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - AUTH_SERVICE_URL=http://auth-service:8091
       - LOG_INGESTION_URL=http://log-ingestion-service:8086
+      - STREAM_PROCESSOR_URL=http://stream-processor-service:8082
       - ANALYSIS_URL=http://analysis-service:8083
       - SEARCH_URL=http://search-service:8084
+      - ALERT_SERVICE_URL=http://alert-service:8085
+    depends_on:
+      - auth-service
+      - log-ingestion-service
+      - analysis-service
+      - search-service
+      - alert-service
 
   auth-service:
     build:
@@ -147,27 +156,26 @@ services:
     ports:
       - "8091:8091"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
-      - JWT_SECRET=${JWT_SECRET}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-loganalyzer}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-admin}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-your_secure_db_password}
+      - JWT_SECRET=${JWT_SECRET:-defaultSecretKeyThatIsAtLeast32BytesLongForHS256}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
       - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
+      - APP_FRONTEND_URL=${FRONTEND_URL:-http://localhost:3001}
     depends_on:
       - postgres
       - redis
 
-  # --- FRONTEND ---
   frontend-dashboard:
     build:
       context: ./frontend-dashboard
       dockerfile: Dockerfile
     ports:
-      - "5173:80"
+      - "3001:80"
     depends_on:
-      - analysis-service
-      - search-service
+      - api-gateway

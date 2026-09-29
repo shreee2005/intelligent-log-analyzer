@@ -13,7 +13,6 @@ services:
       - zookeeper
     ports:
       - "9092:9092"
-      - "9093:9093"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -32,16 +31,15 @@ services:
       - xpack.security.enabled=false
     ports:
       - "9200:9200"
-      - "9300:9300"
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
 
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: loganalyzer
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-loganalyzer}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your_secure_db_password}
     ports:
       - "5432:5432"
     volumes:
@@ -54,7 +52,8 @@ services:
     volumes:
       - redis-data:/data
 
-  # Spring Boot Microservices removed for local development
+  # Application services are intended to run on the host during local development.
+  # Use docker-compose.prod.yml only when you want the Java services in containers too.
 
 networks:
   log-analyzer-network:

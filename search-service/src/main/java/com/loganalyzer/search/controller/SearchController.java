@@ -11,12 +11,12 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.CrossOrigin;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
-@CrossOrigin(origins = "*")
+
 @RequestMapping("/api/v1/search")
 @RequiredArgsConstructor
 public class SearchController {
@@ -28,14 +28,29 @@ public class SearchController {
     public ResponseEntity<?> searchLogs(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestParam Long projectId,
-            @RequestParam String query) {
+            @RequestParam(required = false) String query) {
         if (!projectAccessClient.hasAccess(projectId, authorization)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Project access denied");
+        }
+        if (query == null || query.isBlank()) {
+            return ResponseEntity.ok(
+                    logSearchRepository.findByProjectIdOrderByTimestampDesc(projectId));
         }
         return ResponseEntity.ok(
                 logSearchRepository.findByProjectIdAndMessageContaining(projectId, query));
     }
     
+    @GetMapping("/services")
+    public ResponseEntity<?> getServices(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam Long projectId) {
+        if (!projectAccessClient.hasAccess(projectId, authorization)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Project access denied");
+        }
+        Set<String> services = logSearchRepository.findDistinctServiceIdByProjectId(projectId);
+        return ResponseEntity.ok(services);
+    }
+
     @GetMapping("/service")
     public ResponseEntity<?> searchByService(
             @RequestHeader(value = "Authorization", required = false) String authorization,

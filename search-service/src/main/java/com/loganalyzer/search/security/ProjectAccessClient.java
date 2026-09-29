@@ -31,6 +31,12 @@ public class ProjectAccessClient {
                     .toBodilessEntity();
             return true;
         } catch (RestClientException exception) {
+            System.out.println(
+                    "Project access check failed for project "
+                            + projectId + ": "
+                            + exception.getMessage()
+            );
+            exception.printStackTrace();
             return false;
         }
     }

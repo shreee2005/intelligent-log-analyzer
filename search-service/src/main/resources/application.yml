@@ -1,0 +1,27 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: search-service
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  elasticsearch:
+    uris: ${SPRING_ELASTICSEARCH_URIS:http://localhost:9200}
+
+auth:
+  service:
+    url: ${AUTH_SERVICE_URL:http://localhost:8091}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.loganalyzer: DEBUG

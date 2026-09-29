@@ -7,6 +7,7 @@ import com.loganalyzer.auth.repository.UserRepository;
 import com.loganalyzer.auth.security.ApiKeyHasher;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -31,6 +32,7 @@ public class ProjectController {
     }
 
     @PostMapping
+    @Transactional
     public ResponseEntity<?> create(@RequestBody Map<String, String> request) {
         String name = request.get("name");
         String email = authenticatedEmail();
@@ -47,6 +49,10 @@ public class ProjectController {
         project.setName(name);
         project.setOwner(ownerOpt.get());
         String rawApiKey = project.getApiKey();
+        if (rawApiKey == null || rawApiKey.isBlank()) {
+            rawApiKey = UUID.randomUUID().toString();
+            project.setApiKey(rawApiKey);
+        }
         project.setApiKeyHash(apiKeyHasher.hash(rawApiKey));
         projectRepository.save(project);
 
@@ -58,6 +64,7 @@ public class ProjectController {
     }
 
     @GetMapping
+    @Transactional(readOnly = true)
     public ResponseEntity<?> list() {
         String email = authenticatedEmail();
         if (email == null) {
@@ -68,7 +75,16 @@ public class ProjectController {
             return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
         }
 
-        List<Project> projects = projectRepository.findAllByOwnerId(ownerOpt.get().getId());
+        List<Map<String, Object>> projects = projectRepository.findAllByOwnerId(ownerOpt.get().getId())
+                .stream()
+                .map(project -> {
+                    Map<String, Object> item = new java.util.HashMap<>();
+                    item.put("id", project.getId());
+                    item.put("projectId", project.getId());
+                    item.put("name", project.getName());
+                    return item;
+                })
+                .toList();
         return ResponseEntity.ok(projects);
     }
 
@@ -156,16 +172,8 @@ public class ProjectController {
         if (apiKey == null || apiKey.isBlank()) {
             return Optional.empty();
         }
-        Optional<Project> hashed = projectRepository.findByApiKeyHash(apiKeyHasher.hash(apiKey))
+        return projectRepository.findByApiKeyHash(apiKeyHasher.hash(apiKey))
                 .filter(Project::isApiKeyActive);
-        if (hashed.isPresent()) {
-            return hashed;
-        }
-        Optional<Project> legacy = projectRepository.findByApiKey(apiKey);
-        if (legacy.isPresent() && legacy.get().isApiKeyActive()) {
-            return legacy;
-        }
-        return Optional.empty();
     }
 
     private boolean ownsProject(Long projectId) {

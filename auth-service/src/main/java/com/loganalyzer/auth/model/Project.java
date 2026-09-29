@@ -16,9 +16,10 @@ public class Project {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
+    @JsonIgnore
     private User owner;
 
-    @Column(nullable = false, unique = true)
+    @Transient
     @JsonIgnore
     private String apiKey = UUID.randomUUID().toString();
 

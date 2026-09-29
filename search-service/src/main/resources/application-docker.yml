@@ -1,0 +1,8 @@
+spring:
+  config:
+    activate:
+      on-profile: docker
+  elasticsearch:
+    uris: http://elasticsearch:9200
+  kafka:
+    bootstrap-servers: kafka:29092

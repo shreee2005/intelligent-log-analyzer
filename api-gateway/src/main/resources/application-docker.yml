@@ -1,0 +1,35 @@
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          routes:
+
+            - id: log-ingestion-service
+              uri: http://log-ingestion-service:8086
+              predicates:
+                - Path=/api/v1/logs,/api/v1/logs/**,/api/v1/ingest,/api/v1/ingest/**
+
+            - id: analysis-service
+              uri: http://analysis-service:8083
+              predicates:
+                - Path=/api/v1/analytics,/api/v1/analytics/**
+
+            - id: search-service
+              uri: http://search-service:8084
+              predicates:
+                - Path=/api/v1/search,/api/v1/search/**
+
+            - id: alert-service
+              uri: http://alert-service:8085
+              predicates:
+                - Path=/api/projects/*/webhooks,/api/projects/*/webhooks/**
+
+            - id: auth-service
+              uri: http://auth-service:8091
+              predicates:
+                - Path=/api/auth,/api/auth/**,/api/projects,/api/projects/**,/oauth2/**,/login/oauth2/**
