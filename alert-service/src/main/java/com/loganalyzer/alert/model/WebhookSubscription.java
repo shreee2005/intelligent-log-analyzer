@@ -18,18 +18,21 @@ public class WebhookSubscription {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "project_id", nullable = false)
     private Long projectId;
 
     @Column(nullable = false, length = 2048)
     private String url;
 
-    @Column(nullable = false, length = 128)
+    @Column(nullable = false, length = 256)
     private String secret;
 
     @Column(nullable = false)
     private boolean active = true;
 
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt = Instant.now();
 }
