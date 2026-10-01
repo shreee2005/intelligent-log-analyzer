@@ -42,9 +42,22 @@ public class WebhookDelivery {
     private Instant nextAttemptAt = Instant.now();
 
     private Instant deliveredAt;
+
+    @Column(name = "http_status")
+    private Integer httpStatus;
+
+    @Column(name = "latency_ms")
+    private Long latencyMs;
+
     private String lastError;
 
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt = Instant.now();
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt = Instant.now();
+
     public enum DeliveryStatus {
-        PENDING, DELIVERED, FAILED
+        PENDING, RETRY_PENDING, DELIVERED, FAILED
     }
 }

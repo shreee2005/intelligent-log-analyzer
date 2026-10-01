@@ -39,7 +39,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     public OAuth2SuccessHandler(JwtUtil jwtUtil,
                                 UserRepository userRepository,
-                                @Value("${app.frontend-url:http://localhost:5173}") String frontendUrl,
+                                @Value("${app.frontend-url:http://localhost:3001}") String frontendUrl,
                                 OAuth2AuthorizedClientService authorizedClientService,
                                 RestTemplate restTemplate) {
         this.jwtUtil = jwtUtil;
