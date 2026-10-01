@@ -39,7 +39,7 @@ oauth2:
     client-secret: ${GITHUB_CLIENT_SECRET:}
 
 app:
-  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  frontend-url: ${FRONTEND_URL:http://localhost:3001}
 
 management:
   endpoints:
