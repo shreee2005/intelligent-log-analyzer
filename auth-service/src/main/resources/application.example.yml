@@ -32,4 +32,4 @@ oauth2:
     client-secret: ""
 
 app:
-  frontend-url: http://localhost:5173
+  frontend-url: http://localhost:3001

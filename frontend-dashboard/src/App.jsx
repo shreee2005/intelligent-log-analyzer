@@ -6,7 +6,8 @@ import LiveMetricsPanel from './LiveMetricsPanel';
 import LogSearchConsole from './LogSearchConsole';
 import IntegrationHub from './IntegrationHub';
 import MetricsDashboard from './MetricsDashboard';
-import { LayoutDashboard, CodeSquare, LogOut, Briefcase, Plus, ShieldCheck, FolderKey, TrendingUp, Settings, RotateCcw, ShieldAlert, Key } from 'lucide-react';
+import { LayoutDashboard, CodeSquare, LogOut, Briefcase, Plus, ShieldCheck, FolderKey, TrendingUp, Settings, RotateCcw, ShieldAlert, Key, Radio } from 'lucide-react';
+import WebhookManagement from './WebhookManagement';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
@@ -436,6 +437,13 @@ function App() {
             Metrics
           </button>
           <button
+            className={`nav-item ${dashTab === 'webhooks' ? 'active' : ''}`}
+            onClick={() => setDashTab('webhooks')}
+          >
+            <Radio size={16} />
+            Webhooks
+          </button>
+          <button
             className={`nav-item ${dashTab === 'settings' ? 'active' : ''}`}
             onClick={() => setDashTab('settings')}
           >
@@ -456,6 +464,8 @@ function App() {
         </div>
       ) : dashTab === 'metrics' ? (
         <MetricsDashboard projectId={selectedProject?.id} token={token} />
+      ) : dashTab === 'webhooks' ? (
+        <WebhookManagement projectId={selectedProject?.id} token={token} />
       ) : dashTab === 'settings' ? (
         <div className="card" style={{ maxWidth: '600px', margin: '2rem auto', padding: '1.5rem' }}>
           <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
