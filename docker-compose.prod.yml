@@ -93,6 +93,18 @@ services:
     depends_on:
       - kafka
 
+  ml-suggestion-service:
+    build:
+      context: .
+      dockerfile: ml-suggestion-service/Dockerfile
+    restart: always
+    ports:
+      - "8087:8087"
+    depends_on:
+      - kafka
+      - redis
+      - postgres
+
   search-service:
     build:
       context: .

@@ -25,6 +25,7 @@
         <module>alert-service</module>
         <module>api-gateway</module>
         <module>auth-service</module>
+        <module>ml-suggestion-service</module>
     </modules>
 
     <properties>
