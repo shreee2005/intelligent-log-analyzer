@@ -1,17 +1,123 @@
 server:
-  port: 8087
+  port: ${SERVER_PORT:8087}
 
 spring:
   application:
     name: ml-suggestion-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/loganalyzer}
+    username: ${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:admin}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:your_secure_db_password}}
+    hikari:
+      maximum-pool-size: 10
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ml-suggestion-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.trusted.packages: "com.loganalyzer.ml.dto"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+
+  ai:
+    vertex:
+      ai:
+        project-id: ${GCP_PROJECT_ID:}
+        location: ${GCP_VERTEX_LOCATION:us-central1}
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      chat:
+        options:
+          model: gpt-4o-mini
+      embedding:
+        options:
+          model: text-embedding-3-small
+
+# Auth service for project access validation
+auth:
+  service:
+    url: ${AUTH_SERVICE_URL:http://localhost:8091}
+
+# Search service for log context
+search:
+  service:
+    url: ${SEARCH_SERVICE_URL:http://localhost:8084}
+
+# Analysis service for metric context
+analysis:
+  service:
+    url: ${ANALYSIS_SERVICE_URL:http://localhost:8083}
+
+# ML Suggestion Configuration
+ml:
+  suggestion:
+    llm:
+      provider: ${ML_LLM_PROVIDER:vertexai-gemini}
+      model: ${ML_LLM_MODEL:gemini-1.5-pro-001}
+      temperature: ${ML_LLM_TEMPERATURE:0.1}
+      max-output-tokens: ${ML_LLM_MAX_TOKENS:8192}
+    rag:
+      top-k: ${ML_RAG_TOP_K:5}
+      similarity-threshold: ${ML_RAG_SIMILARITY_THRESHOLD:0.7}
+      embedding-model: ${ML_EMBEDDING_MODEL:text-embedding-3-small}
+    cache:
+      ttl-seconds: ${ML_CACHE_TTL_SECONDS:3600}
+    context:
+      max-logs: ${ML_MAX_LOGS:50}
+      max-metric-hours: ${ML_MAX_METRIC_HOURS:24}
+    async:
+      enabled: ${ML_ASYNC_ENABLED:true}
+      request-topic: ${ML_REQUEST_TOPIC:ml.suggestions.request}
+      response-topic: ${ML_RESPONSE_TOPIC:ml.suggestions.response}
+      dlq-topic: ${ML_DLQ_TOPIC:ml.suggestions.dlq}
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info,metrics,prometheus
-
   endpoint:
     health:
       probes:
         enabled: true
+      show-details: always
+
+logging:
+  level:
+    com.loganalyzer.ml: DEBUG
+    org.springframework.ai: DEBUG
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: DEBUG
