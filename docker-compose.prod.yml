@@ -100,10 +100,25 @@ services:
     restart: always
     ports:
       - "8087:8087"
+    environment:
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-loganalyzer}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-admin}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-your_secure_db_password}
+      - AUTH_SERVICE_URL=http://auth-service:8091
+      - SEARCH_SERVICE_URL=http://search-service:8084
+      - ANALYSIS_SERVICE_URL=http://analysis-service:8083
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     depends_on:
       - kafka
       - redis
       - postgres
+      - auth-service
+      - search-service
+      - analysis-service
 
   search-service:
     build:

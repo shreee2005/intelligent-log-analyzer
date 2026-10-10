@@ -3,20 +3,20 @@ FROM maven:3.9.6-eclipse-temurin-21-alpine AS builder
 
 WORKDIR /build
 
-# Copy parent pom first for dependency resolution
-COPY ../pom.xml /build/pom.xml
+# Copy parent pom for dependency management
+COPY pom.xml /build/pom.xml
 
-# Copy this module's pom
-COPY pom.xml /build/ml-suggestion-service/pom.xml
+# Copy only this module's pom
+COPY ml-suggestion-service/pom.xml /build/ml-suggestion-service/pom.xml
 
-# Download dependencies (cached layer)
-RUN mvn dependency:go-offline -pl ml-suggestion-service -am
+# Download dependencies (cached layer) - build from module's pom directly
+RUN mvn dependency:go-offline -f ml-suggestion-service/pom.xml
 
 # Copy source code
-COPY src /build/ml-suggestion-service/src
+COPY ml-suggestion-service/src /build/ml-suggestion-service/src
 
 # Build only this module
-RUN mvn clean package -pl ml-suggestion-service -am -DskipTests
+RUN mvn clean package -f ml-suggestion-service/pom.xml -DskipTests
 
 # Runtime stage
 FROM eclipse-temurin:21-jre-alpine
