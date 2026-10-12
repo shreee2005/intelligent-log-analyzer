@@ -115,6 +115,22 @@ management:
         enabled: true
       show-details: always
 
+# Spring AI ChatClient configuration
+spring:
+  ai:
+    chat:
+      client:
+        enabled: true
+
+# Async executor for audit logging
+spring:
+  task:
+    execution:
+      pool:
+        core-size: 2
+        max-size: 5
+        queue-capacity: 100
+
 logging:
   level:
     com.loganalyzer.ml: DEBUG
