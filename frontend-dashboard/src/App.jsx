@@ -212,11 +212,10 @@ function App() {
       apiKey: project.apiKey || storedApiKey || ''
     };
 
-    // If no API key in localStorage, try to fetch it from a new endpoint
-    // Note: For security, API keys are hashed in DB and only returned at creation/rotation
-    // If not in localStorage, user needs to rotate the key to get a new one
+    // If no API key in localStorage, the Integration Hub will show a placeholder
+    // and the user can rotate the key from the Settings tab
     if (!projectWithApiKey.apiKey) {
-      console.warn(`No API key found in localStorage for project ${project.id}. User may need to rotate the key.`);
+      console.info(`No API key found in localStorage for project ${project.id}. User can rotate the key from Settings tab.`);
     }
 
     setSelectedProject(projectWithApiKey);

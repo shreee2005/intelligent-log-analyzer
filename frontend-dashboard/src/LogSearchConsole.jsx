@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Loader2, Calendar, Terminal, FileText, Wrench } from 'lucide-react';
+import { Search, Loader2, Calendar, Terminal, FileText, Wrench, Brain, Zap } from 'lucide-react';
 import { parseLogSemanticContext } from './LogSemanticParser';
+import AIAnalysisModal from './AIAnalysisModal';
 import { API_BASE_URL } from './config';
 
 const LogSearchConsole = ({ projectId, token }) => {
@@ -15,7 +16,18 @@ const LogSearchConsole = ({ projectId, token }) => {
   const [selectedService, setSelectedService] = useState('ALL');
   const [selectedLevel, setSelectedLevel] = useState('ALL');
 
-    useEffect(() => {
+  // AI Analysis Modal State
+  const [aiAnalysisModal, setAiAnalysisModal] = useState({ isOpen: false, anomaly: null });
+
+  const openAiAnalysis = (anomaly) => {
+    setAiAnalysisModal({ isOpen: true, anomaly });
+  };
+
+  const closeAiAnalysis = () => {
+    setAiAnalysisModal({ isOpen: false, anomaly: null });
+  };
+
+  useEffect(() => {
     if (!projectId) return;
 
     const fetchData = async (isInitial = false) => {
@@ -46,7 +58,7 @@ const LogSearchConsole = ({ projectId, token }) => {
                  isAnomaly: true,
                  anomalyData: a
                };
-            });
+           });
         } catch (anomalyErr) {
             console.warn('Could not fetch anomalies:', anomalyErr);
         }
@@ -128,8 +140,6 @@ const LogSearchConsole = ({ projectId, token }) => {
     return groups;
   };
 
-  const groupedLogs = groupLogs(filteredLogs);
-
   const getGroupPreview = (group) => {
     const safeGroupLogs = Array.isArray(group?.logs) ? group.logs : [];
     const errorLog = safeGroupLogs.find((l) => l?.level === 'ERROR');
@@ -175,8 +185,29 @@ const LogSearchConsole = ({ projectId, token }) => {
               </>
             )}
           </div>
-          <div className={`badge ${isAnomaly ? 'anomaly' : isError ? 'error' : isWarn ? 'warn' : 'info'}`}>
-            {isAnomaly ? '🚨 ' + log?.level : log?.level || 'INFO'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div className={`badge ${isAnomaly ? 'anomaly' : isError ? 'error' : isWarn ? 'warn' : 'info'}`}>
+              {isAnomaly ? '🚨 ' + log?.level : log?.level || 'INFO'}
+            </div>
+            {isAnomaly && (
+              <button
+                className="ai-analysis-btn"
+                onClick={() => openAiAnalysis({
+                  projectId,
+                  anomalyId: log.anomalyData?.eventId || log.anomalyData?.deduplicationKey || log.id,
+                  eventId: log.anomalyData?.eventId,
+                  serviceId: log.anomalyData?.serviceId || log.serviceId,
+                  traceId: log.traceId,
+                  type: log.anomalyData?.type,
+                  zScore: log.anomalyData?.zScore || log.anomalyData?.zscore,
+                  currentVolume: log.anomalyData?.currentVolume,
+                  meanVolume: log.anomalyData?.meanVolume
+                })}
+                title="Run AI Root Cause Analysis"
+              >
+                <Brain size={14} /> AI Analysis
+              </button>
+            )}
           </div>
         </div>
 
@@ -243,6 +274,8 @@ const LogSearchConsole = ({ projectId, token }) => {
       </div>
     );
   };
+
+  const groupedLogs = groupLogs(filteredLogs);
 
   return (
     <div className="card console-card">
@@ -343,7 +376,15 @@ const LogSearchConsole = ({ projectId, token }) => {
           );
         })}
       </div>
-    </div>
+    {/* AI Analysis Modal */}
+    <AIAnalysisModal
+      isOpen={aiAnalysisModal.isOpen}
+      onClose={closeAiAnalysis}
+      anomaly={aiAnalysisModal.anomaly}
+      projectId={projectId}
+      token={token}
+    />
+  </div>
   );
 };
 
